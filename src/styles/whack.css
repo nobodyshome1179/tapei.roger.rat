@@ -1,0 +1,45 @@
+/* 市民、店家：槌子游標；按下時換成敲下去的角度 */
+body:is([data-role=citizen],[data-role=merchant]),
+body:is([data-role=citizen],[data-role=merchant]) :is(#map,#map *,button,a,label,[role=button],summary,.leaflet-interactive,.mrat){cursor:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cg%20transform%3D%22translate%2812.5%2012.5%29%20rotate%2845%29%20scale%28.9%29%22%20stroke%3D%22%232a2a2a%22%20stroke-width%3D%221.5%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%225%22%20y%3D%22-2.3%22%20width%3D%2222%22%20height%3D%224.6%22%20rx%3D%221.7%22%20fill%3D%22%23d9a35f%22%2F%3E%3Crect%20x%3D%22-6.5%22%20y%3D%22-12%22%20width%3D%2213%22%20height%3D%2224%22%20rx%3D%223.2%22%20fill%3D%22%23e8392f%22%2F%3E%3Crect%20x%3D%22-6.5%22%20y%3D%22-12%22%20width%3D%2213%22%20height%3D%224.4%22%20rx%3D%221.5%22%20fill%3D%22%23f6c84c%22%2F%3E%3Crect%20x%3D%22-6.5%22%20y%3D%227.6%22%20width%3D%2213%22%20height%3D%224.4%22%20rx%3D%221.5%22%20fill%3D%22%23f6c84c%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") 6 6,pointer}
+body.whack:is([data-role=citizen],[data-role=merchant]),
+body.whack:is([data-role=citizen],[data-role=merchant]) :is(#map,#map *,button,a,label,[role=button],summary,.leaflet-interactive,.mrat){cursor:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cg%20transform%3D%22translate%2812.5%2012.5%29%20rotate%2815%29%20scale%28.9%29%22%20stroke%3D%22%232a2a2a%22%20stroke-width%3D%221.5%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%225%22%20y%3D%22-2.3%22%20width%3D%2222%22%20height%3D%224.6%22%20rx%3D%221.7%22%20fill%3D%22%23d9a35f%22%2F%3E%3Crect%20x%3D%22-6.5%22%20y%3D%22-12%22%20width%3D%2213%22%20height%3D%2224%22%20rx%3D%223.2%22%20fill%3D%22%23e8392f%22%2F%3E%3Crect%20x%3D%22-6.5%22%20y%3D%22-12%22%20width%3D%2213%22%20height%3D%224.4%22%20rx%3D%221.5%22%20fill%3D%22%23f6c84c%22%2F%3E%3Crect%20x%3D%22-6.5%22%20y%3D%227.6%22%20width%3D%2213%22%20height%3D%224.4%22%20rx%3D%221.5%22%20fill%3D%22%23f6c84c%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") 6 6,pointer}
+body:is([data-role=citizen],[data-role=merchant]) :is(input,textarea,select,[contenteditable]){cursor:auto}
+#map.picking.ratcur,#map.picking.ratcur *{cursor:inherit}
+
+/* 首頁插圖：被敲中後壓扁、轉星星、搖晃，最後淡出 */
+.islsvg .wrat{animation-name:wratstun}
+@keyframes wratstun{0%{opacity:0;scale:.6}4%{opacity:1;scale:1 1}45.4%{scale:1 1}46%{scale:1.3 .5}48%,50.4%{scale:1.18 .68}51%{scale:1.32 .48}53%,55.4%{scale:1.2 .66}56%{scale:1.34 .46}59%{scale:1.2 .66;rotate:0deg}64%{scale:1.08 .82;rotate:-7deg}70%{rotate:6deg}76%{rotate:-6deg}82%{rotate:5deg}88%{rotate:-3deg;opacity:1}94%,100%{opacity:0;scale:1.08 .82;rotate:0deg}}
+.islsvg .wbubs{display:none}
+.islsvg .wdizzy{animation:wdizzy 6s linear infinite}
+@keyframes wdizzy{0%,46%{opacity:0}47%,89%{opacity:1}94%,100%{opacity:0}}
+.islsvg .wspin{animation:wspin .9s linear infinite}
+@keyframes wspin{to{rotate:360deg}}
+@media (prefers-reduced-motion:reduce){.islsvg .wdizzy,.islsvg .wspin{animation:none}.islsvg .wdizzy{opacity:0}}
+
+/* 地圖上的老鼠 */
+#ratLayer{position:fixed;inset:0;z-index:700;pointer-events:none;overflow:hidden}
+.mrat{position:absolute;left:0;top:0;width:54px;height:56px;margin:-56px 0 0 -27px;pointer-events:auto;touch-action:manipulation}
+.mrat-b{position:absolute;inset:0;transform-origin:50% 100%;animation:mratbob .17s ease-in-out infinite alternate}
+.mrat-b svg{display:block;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
+.mrat-b.flip svg{transform:scaleX(-1)}
+@keyframes mratbob{to{translate:0 -3px}}
+.mrat-stars{position:absolute;left:50%;top:-6px;width:44px;height:44px;margin-left:-22px;opacity:0;pointer-events:none;overflow:visible}
+.mrat-stars g{transform-origin:22px 22px;animation:wspin .8s linear infinite}
+.mrat .bonk{position:absolute;left:50%;top:-30px;translate:-50% 0;white-space:nowrap;font:800 18px/1 var(--round,inherit);color:#fff;-webkit-text-stroke:4px #2a2a2a;paint-order:stroke fill;opacity:0;pointer-events:none}
+.mrat.hit .mrat-b{animation:mratsquash .45s ease-out forwards}
+.mrat.hit .mrat-b svg{animation:mratwob .5s .45s ease-in-out infinite alternate}
+.mrat.hit .mrat-stars{opacity:1;transition:opacity .15s .1s}
+.mrat.hit .bonk{animation:mratbonk .9s ease-out forwards}
+.mrat.bye{opacity:0;transition:opacity .45s}
+@keyframes mratsquash{0%{scale:1 1}25%{scale:1.45 .42}55%{scale:1.15 .72}75%{scale:1.28 .58}100%{scale:1.22 .64}}
+.mrat .food{position:absolute;left:-5px;top:24px;width:24px;height:24px;pointer-events:none;filter:drop-shadow(0 1px 0 rgba(0,0,0,.25))}
+.mrat .food svg{display:block;width:100%;height:100%}
+.mrat-b.flip~.food{left:auto;right:-5px}
+.mrat.hit .food{animation:foodfly .7s ease-out forwards}
+@keyframes foodfly{0%{translate:0 0}40%{translate:0 -34px;rotate:-25deg}100%{translate:0 -20px;rotate:-15deg;opacity:0}}
+.mrat .loot{position:absolute;left:50%;top:-74px;translate:-50% 0;display:flex;align-items:center;gap:6px;white-space:nowrap;background:#fffaf0;color:#2a2a2a;border:2px solid #2a2a2a;border-radius:14px;padding:5px 11px 5px 6px;font-weight:800;font-size:14px;box-shadow:0 3px 0 rgba(0,0,0,.3);opacity:0;pointer-events:none}
+.mrat .loot svg{width:26px;height:26px}
+.mrat.hit .loot{animation:lootpop 1.6s .15s ease-out forwards}
+@keyframes lootpop{0%{opacity:0;scale:.4}14%{opacity:1;scale:1.12}24%,80%{opacity:1;scale:1}100%{opacity:0;scale:1;translate:-50% -10px}}
+@keyframes mratwob{from{rotate:-7deg}to{rotate:7deg}}
+@keyframes mratbonk{0%{opacity:0;scale:.5;translate:-50% 6px}20%{opacity:1;scale:1.2;translate:-50% 0}70%{opacity:1;scale:1}100%{opacity:0;translate:-50% -18px}}

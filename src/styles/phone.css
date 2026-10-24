@@ -1,0 +1,27 @@
+/* 手機面板：遮罩＋左下角手機 */
+#phMask{position:fixed;inset:0;z-index:5000;background:rgba(14,20,16,.8);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);opacity:0;visibility:hidden;transition:opacity .3s,visibility 0s .3s}
+#phMask.on{opacity:1;visibility:visible;transition:opacity .3s}
+#phPanel{position:absolute;left:24px;bottom:20px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.phtabs{display:flex;align-items:center;gap:6px;align-self:stretch}
+.phtabs .seg{display:flex;gap:2px;background:rgba(0,0,0,.45);border-radius:999px;padding:4px}
+.phtabs .seg button{border:0;background:none;color:#fff;font:inherit;font-size:14px;font-weight:700;border-radius:999px;padding:6px 14px;cursor:pointer}
+.phtabs .seg button[aria-selected=true]{background:#fff;color:#1f2a22}
+.phtabs .seg button[data-ph=line][aria-selected=true]{background:#06c755;color:#fff}
+.phtabs .ghost{border:1.5px solid rgba(255,255,255,.8);background:rgba(0,0,0,.3);color:#fff;font:inherit;font-size:13px;font-weight:700;border-radius:999px;padding:6px 12px;cursor:pointer}
+.phbox{width:calc(390px * var(--ps,1));height:calc(800px * var(--ps,1));position:relative}
+.phframe,.phscr{box-sizing:border-box}
+.phframe{position:absolute;left:0;top:0;width:390px;height:800px;transform:scale(var(--ps,1));transform-origin:0 0;border-radius:52px;background:#111;padding:12px;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.phscr{position:relative;width:100%;height:100%;border-radius:42px;overflow:hidden;background:#000;isolation:isolate}
+.phscr iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg,#fff);color-scheme:light dark;visibility:hidden}
+.phscr iframe[data-ph=line]{background:transparent}
+.phscr iframe.on{visibility:visible}
+#phClose{margin-left:auto;flex:none;width:38px;height:38px;border-radius:50%;border:1.5px solid #fff;background:rgba(0,0,0,.3);color:#fff;display:grid;place-items:center;cursor:pointer}
+.toplinks #btnPhone,#heroPhone{display:inline-flex;align-items:center;gap:6px}
+.toplinks #btnPhone{background:#06c755;border-color:#06c755;color:#fff;font-weight:700}
+.toplinks #btnPhone:hover{background:#05a648;color:#fff}
+#heroPhone{margin-top:12px;border:1.5px solid var(--edge);background:var(--paper);color:var(--ink);border-radius:999px;padding:8px 16px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+#heroPhone i{width:10px;height:10px;border-radius:50%;background:#06c755}
+/* 手機面板只給電腦上 demo 用；真的手機寬度改用頂列的 LINE 導覽 */
+@media (max-width:860px){.toplinks #btnPhone{display:none!important}#phPanel{left:50%;translate:-50% 0;align-items:center;bottom:12px}}
+/* 被載入手機面板裡的網站：只留市民或店家 */
+body.phemb #hero,body.phemb #roles,body.phemb #btnPhone,body.phemb #heroPhone,body.phemb #btnHero,body.phemb #btnHome,body.phemb #btnRules,body.phemb [data-menu=hero]{display:none!important}

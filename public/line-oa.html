@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>有鼠請回答 LINE 流程</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#e4efe0;--mint:#d6eacf;--cream:#fffaf1;--paper:#fffdf8;--ink:#2a2a2a;--muted:#6d6a61;--line:#e3ddcd;--edge:#2a2a2a;
+  --green:#4f9a5a;--green-d:#36773f;--leaf:#9ccc6b;--lime:#c8ee6a;--blue:#2e7fa8;--orange:#ef9a3c;--red:#d9502f;--grey:#b8b5a6;
+  --note:#fdeee3;--note-ink:#8a3a17;--purple:#7d4f9e;--lilac:#e7dcf2;
+  --l1:#d9502f;--l2:#e9b13a;--l3:#2b67a8;--l4:#4f9a5a;--l5:#fffdf8;
+  --sans:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;
+  --round:'Zen Maru Gothic','Noto Sans TC',system-ui,sans-serif;
+  /* LINE 介面本身的顏色 */
+  --line-bg:#b9cbe2;--line-me:#a5e573;--line-hd:#ffffff;--line-green:#06c755;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,textarea:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+/* ---------- 外框：左側流程、右側手機 ---------- */
+.app{display:grid;grid-template-columns:minmax(300px,380px) 1fr;height:100vh}
+.rail{background:var(--paper);border-right:1.5px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.rail header{padding:20px 22px 12px}
+.brandline{display:flex;align-items:center;gap:10px}
+.brandline img{width:40px;height:auto}
+.rail h1{font:700 19px/1.3 var(--round);margin:0}
+.rail .sub{font-size:13px;color:var(--muted);margin:6px 0 0;line-height:1.6}
+.steps{list-style:none;margin:0;padding:4px 12px 16px;overflow:auto;flex:1}
+.steps li+li{margin-top:2px}
+.step{display:grid;grid-template-columns:28px 1fr;gap:10px;width:100%;text-align:left;border:0;background:none;border-radius:12px;padding:9px 10px}
+.step:hover{background:#f4f9ef}
+.step .n{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--edge);display:grid;place-items:center;font:700 12px var(--round);background:var(--paper)}
+.step b{display:block;font-size:14.5px}
+.step .why{display:none;font-size:12.5px;color:var(--muted);line-height:1.65;margin-top:4px}
+.step[aria-current=step]{background:var(--mint)}
+.step[aria-current=step] .n{background:var(--ink);color:var(--paper)}
+.step[aria-current=step] .why{display:block}
+.step.past .n{background:var(--lime)}
+.step .tag{display:inline-block;font-size:11px;font-weight:700;color:var(--purple);border:1px solid currentColor;border-radius:999px;padding:0 6px;margin-left:6px;vertical-align:1px}
+.grp{font-size:12px;font-weight:700;color:var(--muted);padding:12px 10px 4px}
+.stage{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:0;padding:16px}
+.ctrl{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.ctrl button{border:1.5px solid var(--edge);background:var(--paper);border-radius:999px;padding:7px 16px;font-weight:700;font-size:14px}
+.ctrl button.pri{background:var(--ink);color:var(--paper)}
+.ctrl button:disabled{opacity:.35;cursor:default}
+.hint{font-size:12px;color:var(--muted)}
+.mnotes{display:none}
+
+/* ---------- 手機 ---------- */
+.phonewrap{width:calc(390px * var(--s,1));height:calc(800px * var(--s,1));position:relative;flex:none}
+.phone{width:390px;height:800px;transform:scale(var(--s,1));transform-origin:0 0;border-radius:52px;background:#111;padding:12px;box-shadow:0 24px 60px rgba(42,42,42,.25)}
+.screen{position:relative;width:100%;height:100%;border-radius:42px;overflow:hidden;background:#000;isolation:isolate}
+.sbar{position:absolute;inset:0 0 auto;height:46px;display:flex;justify-content:space-between;align-items:center;padding:6px 28px 0 34px;font:600 15px system-ui;z-index:30;pointer-events:none}
+.sbar .ic{display:flex;gap:6px;align-items:center}
+.sbar.dark{color:#fff}
+.island{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:110px;height:32px;border-radius:20px;background:#000;z-index:31}
+
+/* 鎖定畫面 */
+.lock{position:absolute;inset:0;background:linear-gradient(160deg,#36773f 0%,#2e5f6e 55%,#1d2c3a 100%);color:#fff;display:flex;flex-direction:column;align-items:center;padding-top:78px}
+.lock .date{font-size:17px;font-weight:600;opacity:.9}
+.lock .clock{font:200 84px/1 system-ui;letter-spacing:-2px;margin-top:2px}
+.lock .nlist{width:100%;padding:0 12px;margin-top:auto;margin-bottom:120px;display:grid;gap:8px}
+.notif{display:grid;grid-template-columns:38px 1fr;gap:10px;text-align:left;width:100%;border:0;border-radius:22px;padding:12px 14px;background:rgba(245,245,245,.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:#111;animation:drop .5s cubic-bezier(.2,.9,.3,1.2) both}
+.notif .appic{width:38px;height:38px;border-radius:10px;background:var(--line-green);display:grid;place-items:center}
+.notif .top{display:flex;justify-content:space-between;font-size:13px}
+.notif .top b{font-size:14px}
+.notif .top span{color:#666}
+.notif p{margin:2px 0 0;font-size:14px;line-height:1.4}
+.notif.old{animation:none;opacity:.75;transform:scale(.97)}
+.lock .tap{position:absolute;bottom:62px;left:0;right:0;text-align:center;font-size:12.5px;opacity:.8}
+.lock .bar{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:#fff}
+.lock .flash{position:absolute;bottom:36px;left:38px;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.18)}
+.lock .cam{position:absolute;bottom:36px;right:38px;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.18)}
+@keyframes drop{from{transform:translateY(-30px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+
+/* LINE 聊天室 */
+.chat{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--line-bg)}
+.chd{padding:50px 14px 10px;background:var(--line-hd);display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:center;border-bottom:1px solid #e6e6e6}
+.chd .ttl{display:flex;align-items:center;gap:6px;font-weight:700;font-size:17px}
+.chd .ttl small{display:block;font-weight:400;font-size:11px;color:#888}
+.chd .acts{display:flex;gap:16px}
+.msgs{position:relative;flex:1;overflow-y:auto;padding:12px 10px 16px;scroll-behavior:smooth;overscroll-behavior:contain}
+.msgs::-webkit-scrollbar{display:none}
+.row{display:flex;gap:8px;margin:6px 0;align-items:flex-start}
+.row.me{justify-content:flex-end}
+.row .av{width:34px;height:34px;border-radius:50%;background:#fff;flex:none;display:grid;place-items:center;overflow:hidden}
+.row .av img{width:30px}
+.row .av.ghost{visibility:hidden}
+.row .col{display:grid;gap:3px;min-width:0;max-width:100%}
+.row .who{font-size:11px;color:#3d4b5c}
+.bub{background:#fff;border-radius:18px;padding:9px 12px;font-size:14.5px;line-height:1.5;max-width:250px;word-break:break-word}
+.row.me .bub{background:var(--line-me)}
+.row .tm{font-size:10px;color:#4a5869;align-self:flex-end;white-space:nowrap}
+.row.me .tm{order:-1;text-align:right}
+.row.me .tm b{display:block;font-weight:400}
+.day{text-align:center;margin:12px 0}
+.day span{display:inline-block;font-size:11.5px;background:rgba(0,0,0,.18);color:#fff;border-radius:999px;padding:2px 10px}
+.sysmsg{text-align:center;font-size:11.5px;color:#3d4b5c;margin:8px 0}
+.in{animation:pop .35s ease both}
+@keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.car{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -10px 0 0;padding:2px 10px 4px 0}
+.car::-webkit-scrollbar{display:none}
+.car>*{scroll-snap-align:start;flex:none}
+.typing{display:inline-flex;gap:4px;padding:12px 14px}
+.typing i{width:6px;height:6px;border-radius:50%;background:#9aa6b4;animation:blink 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes blink{50%{opacity:.25}}
+
+/* 快速回覆與選單 */
+.qr{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;background:transparent}
+.qr::-webkit-scrollbar{display:none}
+.qr button{flex:none;border:1.5px solid var(--green);background:#fff;color:var(--green-d);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700}
+.inbar{display:grid;grid-template-columns:auto auto 1fr auto;gap:12px;align-items:center;padding:8px 12px;background:#fff;border-top:1px solid #e6e6e6}
+.inbar .kb{border:0;background:none;padding:0;display:grid;place-items:center}
+.inbar .field{background:#f2f2f2;border-radius:18px;height:34px;display:flex;align-items:center;padding:0 12px;color:#aaa;font-size:14px}
+.rmbar{display:grid;grid-template-columns:40px 1fr 40px;align-items:center;background:#fff;border-top:1px solid #e6e6e6;padding:4px 8px}
+.rmbar .kb{display:grid;place-items:center}
+.rmtog{display:flex;justify-content:center;align-items:center;gap:6px;border:0;background:none;padding:7px 0;font-size:14px;font-weight:700;color:#333}
+.rmtog svg{transition:transform .2s}
+.inbar .rmtog,.inbar #rmtog{padding:0}
+.rich{position:relative;border-top:1px solid #e6e6e6}
+.rtabs{display:grid;grid-template-columns:1fr 1fr;background:#fff;border-bottom:1px solid var(--line)}
+.rtabs button{border:0;background:none;padding:8px 0 7px;font-size:13px;font-weight:700;color:#888;border-bottom:3px solid transparent}
+.rtabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--green)}
+.rich.rat .rgrid{display:grid;grid-template-columns:1.15fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:6px;padding:8px;background:var(--cream);height:176px}
+.rgrid button{position:relative;border:1.5px solid var(--edge);border-radius:14px;background:#fff;display:grid;justify-items:center;align-content:center;gap:2px;padding:4px;font-size:13px}
+.rgrid button span{display:grid;place-items:center;color:var(--green-d)}
+.rgrid button small{font-size:11px;color:var(--muted);font-weight:500}
+.rgrid .big{grid-row:span 2;background:var(--red);border-color:var(--red);color:#fff;gap:6px}
+.rgrid .big span{color:#fff}.rgrid .big small{color:#ffe3da}
+.rgrid .big b{font-size:16px}
+.rgrid .badge{position:absolute;top:6px;right:8px;min-width:18px;height:18px;border-radius:9px;background:var(--red);color:#fff;font:700 11px/18px var(--sans);font-style:normal}
+.rich.city .cgrid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr;gap:6px;padding:10px 12px;background:#f4b24e;height:200px}
+.cdeco{display:grid;align-content:center;justify-items:center;color:#5a3a10;text-align:center}
+.cdeco b{font:700 15px var(--round)}.cdeco small{font-size:9.5px;opacity:.75}
+.circ{border:0;background:none;padding:0;display:grid;place-items:center}
+.circ span{width:84px;height:84px;border-radius:50%;background:#fff8ec;box-shadow:3px 4px 0 #d98c2b;display:grid;place-items:center;font:700 15px/1.25 var(--round);color:#d3741c;text-align:center}
+.circ.hl span{outline:3px solid var(--red);outline-offset:3px;animation:pulse 1.4s ease infinite}
+.newtag{position:absolute;right:16px;bottom:8px;background:var(--red);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px}
+.cityav{width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid #ddd;display:grid;place-items:center;font:700 11px var(--sans);color:#2e7fa8}
+.facts{display:grid;grid-template-columns:auto auto auto;justify-content:space-between;gap:8px;font-weight:700;font-size:14px}
+.facts small{display:block;font-weight:400;font-size:11px;color:var(--muted)}
+.safe{font-size:12px;color:var(--note-ink)}
+.ptline{display:flex;align-items:baseline;gap:4px;font-size:13px;font-weight:700}
+.ptline b{font:900 32px/1 var(--sans)}
+.ptline span{margin-left:auto;font-weight:400;color:var(--muted);font-size:12px}
+.tlist{display:grid;gap:6px}
+.toggle small{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:1px}
+.toggle[data-topic][aria-pressed=true] .sw{background:var(--green)}
+.toggle.newt{border-color:var(--red)}
+.nb{font-style:normal;background:var(--red);color:#fff;font-size:10.5px;border-radius:999px;padding:0 6px;margin-left:6px;vertical-align:2px}
+.addloc{width:100%;margin-top:6px;border:1.5px dashed var(--grey);border-radius:12px;background:#fff;padding:9px;font-size:13px;color:var(--green-d);font-weight:700}
+.toggle[data-act=wanttask][aria-pressed=true] .sw{background:var(--green)}
+.homebar{height:22px;background:#fff;display:grid;place-items:center}
+.homebar i{width:134px;height:5px;border-radius:3px;background:#111}
+
+/* ---------- Flex 訊息卡（沿用 OA test 的版型） ---------- */
+.fx{width:272px;border-radius:18px;background:var(--paper);overflow:hidden;font-size:13.5px;line-height:1.55;box-shadow:0 1px 0 rgba(0,0,0,.05)}
+.fx.wide{width:286px}
+.fx-hd{padding:12px 15px 11px;background:var(--mint);position:relative}
+.fx-hd.lil{background:var(--lilac)}
+.fx-hd.warn{background:#fbecc8}
+.fx-hd.done{background:var(--mint)}
+.fx-hd.cream{background:var(--cream)}
+.mk{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#3a3a3a}
+.mk i{display:inline-flex;gap:2px}
+.mk i b{width:8px;height:8px;border-radius:2px;border:1px solid var(--edge)}
+.fx-hd h3{margin:4px 0 0;font:700 19px/1.3 var(--round)}
+.fx-hd .s{font-size:12.5px;color:var(--muted);margin-top:2px}
+.fx-hd .dot{position:absolute;top:12px;right:13px;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--edge);background:var(--lime)}
+.fx-bd{padding:12px 15px 14px;display:grid;gap:10px}
+.fx table{border-collapse:collapse;width:100%;font-size:13px}
+.fx td{padding:3px 0;vertical-align:top}
+.fx td:first-child{color:var(--muted);width:68px;white-space:nowrap}
+.box{border:1.5px solid var(--line);border-radius:12px;padding:9px 11px;background:var(--cream);font-size:12.5px;color:#4a4a44}
+.box b{color:var(--ink)}
+.box.red{border-color:#e6a58f;background:var(--note);color:var(--note-ink)}
+.box.blue{border-color:#bcd8e6;background:#eef6fa}
+.lvl{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+.lvl .ld{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--round);border:1.5px solid var(--edge)}
+.ld.l2{background:var(--l2)}.ld.l4{background:var(--l4);color:#fff}
+.meter{height:8px;border-radius:4px;background:#e6e2d6;overflow:hidden;margin-top:4px}
+.meter i{display:block;height:100%;background:var(--green);border-radius:4px}
+.btns{display:grid;gap:6px;margin-top:2px}
+.fb{border:0;border-radius:12px;padding:10px;font-weight:700;font-size:14px;background:var(--green);color:#fff;width:100%}
+.fb.ghost{background:none;color:var(--green-d);padding:6px}
+.fb.line{background:none;border:1.5px solid var(--edge);color:var(--ink)}
+.fb.lil{color:var(--purple)}
+.fb:disabled{background:#d9d6cc;color:#77746b;cursor:default}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.opts button{border:1.5px solid var(--edge);border-radius:999px;background:#fff;padding:7px 4px;font-size:13px;font-weight:700}
+.opts button.full{grid-column:1/-1}
+.opts button:disabled{opacity:.45;cursor:default}
+.opts button.picked{background:var(--purple);color:#fff;border-color:var(--purple);opacity:1}
+.small{font-size:11.5px;color:var(--muted);line-height:1.55}
+.track{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;text-align:center;font-size:11.5px;color:var(--muted)}
+.track span{display:grid;gap:4px;justify-items:center}
+.track span::before{content:"";width:18px;height:18px;border-radius:50%;border:1.5px solid var(--grey);background:#fff}
+.track span.ok{color:var(--green-d);font-weight:700}
+.track span.ok::before{background:var(--green);border-color:var(--green);box-shadow:inset 0 0 0 3px #fff}
+.track span.now{color:var(--ink);font-weight:700}
+.track span.now::before{border-color:var(--orange);border-width:2px;background:var(--note);animation:blink 1.4s infinite}
+.idc{border:2px solid var(--edge);border-radius:16px;background:var(--mint);padding:11px 13px}
+.idc .r1{display:flex;justify-content:space-between;align-items:baseline;font-weight:700}
+.idc .r1 small{font-weight:400;color:var(--muted);font-size:11px}
+.idc .pts{font:900 40px/1.1 var(--sans);margin-top:4px}
+.idc .pts small{font-size:14px;font-weight:700;margin-left:2px}
+.idc .lvtxt{font-size:12.5px;font-weight:700}
+.idc .lvtxt span{font-weight:400;color:var(--muted)}
+.badges{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.badges span{border:1.5px solid var(--edge);border-radius:999px;text-align:center;padding:3px 4px;font-size:12px;font-weight:700;background:var(--lime)}
+.badges span.off{border-color:var(--line);background:#fff;color:var(--muted);font-weight:500}
+.badges span.new{animation:pulse 1.2s ease 2}
+@keyframes pulse{50%{transform:scale(1.08)}}
+.log{font-size:12.5px;display:grid;gap:2px}
+.log .nw{font-weight:700;color:var(--green-d)}
+.h5{font-size:12.5px;font-weight:700;color:var(--muted)}
+.redeem{display:grid;gap:6px}
+.redeem div{display:grid;grid-template-columns:1fr auto;gap:2px 8px;border:1.5px solid var(--line);border-radius:12px;padding:7px 10px;background:#fff;font-size:12.5px}
+.redeem div b{font-size:13px}
+.redeem div span{color:var(--muted);font-size:11.5px}
+.redeem div em{font-style:normal;font-weight:700;color:var(--green-d);grid-row:span 2;align-self:center}
+
+/* ---------- LIFF（在 LINE 裡開的網頁） ---------- */
+.liff{position:absolute;inset:0;z-index:20;background:var(--paper);display:flex;flex-direction:column;animation:up .32s cubic-bezier(.2,.8,.2,1) both}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+.lhd{padding:50px 12px 8px;display:grid;grid-template-columns:32px 1fr 32px;align-items:center;border-bottom:1px solid var(--line);background:#fff}
+.lhd b{text-align:center;font-size:15px}
+.lhd b small{display:block;font-weight:400;font-size:10.5px;color:#999}
+.lhd button{border:0;background:none;padding:4px;display:grid;place-items:center}
+.lbd{flex:1;min-height:0;overflow-y:auto;padding:14px 16px 20px;display:grid;gap:12px;align-content:start}
+.lbd::-webkit-scrollbar{display:none}
+.lft{padding:10px 16px 26px;border-top:1px solid var(--line);background:#fff;display:grid;gap:6px}
+.lft .small{text-align:center}
+.mapbox{border:1.5px solid var(--edge);border-radius:16px;overflow:hidden;background:#eef3ea}
+.mapbox svg{display:block;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;border:1px solid var(--edge);margin-right:4px;vertical-align:-1px}
+.stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}
+.stat3 div{border:1.5px solid var(--line);border-radius:12px;padding:7px 4px;background:#fff}
+.stat3 b{display:block;font:900 20px var(--sans)}
+.stat3 span{font-size:11px;color:var(--muted)}
+.chk{display:grid;gap:8px}
+.chk label{display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start;font-size:14px;line-height:1.5}
+.chk input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--green)}
+.chk small{display:block;color:var(--muted);font-size:12px}
+.photos{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ph{border:1.5px dashed var(--grey);border-radius:14px;background:var(--cream);aspect-ratio:4/3;display:grid;place-items:center;align-content:center;gap:4px;font-size:13px;font-weight:700;color:var(--muted);padding:0;overflow:hidden;position:relative}
+.ph.on{border:1.5px solid var(--edge);padding:0}
+.ph svg.pic{position:absolute;inset:0;width:100%;height:100%}
+.ph .cap{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.6);color:#fff;font-size:10.5px;font-weight:500;border-radius:6px;padding:1px 6px}
+.ph .lab{position:absolute;left:6px;top:6px;background:#fff;color:var(--ink);font-size:11px;border-radius:6px;padding:0 6px;border:1px solid var(--edge)}
+.okloc{display:flex;gap:8px;align-items:center;border-radius:12px;background:var(--mint);padding:9px 11px;font-size:13px}
+.toggle{display:flex;justify-content:space-between;align-items:center;border:1.5px solid var(--line);border-radius:12px;padding:9px 11px;background:#fff;font-size:14px;font-weight:700;width:100%;text-align:left}
+.sw{width:42px;height:24px;border-radius:12px;background:#d9d6cc;position:relative;flex:none;transition:background .2s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s}
+.toggle[aria-pressed=true] .sw{background:var(--red)}
+.toggle[aria-pressed=true] .sw::after{left:20px}
+textarea{width:100%;min-height:64px;border:1.5px solid var(--line);border-radius:12px;padding:9px 11px;font:16px/1.5 var(--sans);resize:none;background:#fff}
+.sec h4{margin:0 0 6px;font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1.5px solid var(--edge);border-radius:999px;background:#fff;padding:4px 10px;font-size:12.5px}
+.chips button[aria-pressed=true]{background:var(--ink);color:#fff}
+
+.toast{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);background:rgba(30,30,30,.88);color:#fff;font-size:13px;border-radius:12px;padding:8px 14px;z-index:40;width:max-content;max-width:300px;text-align:center;line-height:1.5;animation:pop .25s ease both}
+.timeskip{position:absolute;inset:0;z-index:35;display:grid;place-items:center;background:rgba(20,30,25,.72);color:#fff;text-align:center;font:700 20px/1.6 var(--round);animation:fade 1.4s ease both;pointer-events:none}
+.timeskip small{display:block;font:500 13px var(--sans);opacity:.85}
+@keyframes fade{0%{opacity:0}20%{opacity:1}75%{opacity:1}100%{opacity:0}}
+
+/* ---------- 手機寬度：手機框改成整個畫面，流程變成上方橫向 ---------- */
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr;height:auto;min-height:100vh}
+  .rail{border-right:0;border-bottom:1.5px solid var(--line);min-width:0}
+  .rail header{padding:14px 16px 6px}
+  .rail .sub{display:none}
+  .steps{display:flex;overflow-x:auto;gap:6px;padding:6px 16px 12px}
+  .steps li+li{margin:0}
+  .grp{display:none}
+  .step{grid-template-columns:24px auto;padding:6px 10px;border:1.5px solid var(--line);background:#fff;white-space:nowrap}
+  .step .n{width:22px;height:22px;font-size:11px}
+  .step b{font-size:13px}
+  .step .why,.step[aria-current=step] .why{display:none}
+  .step .tag{display:none}
+  .stage{padding:14px 16px 24px;justify-content:flex-start}
+  .mnotes{display:block;font-size:13px;line-height:1.7;color:var(--muted);background:var(--paper);border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;width:100%;max-width:420px}
+  .mnotes b{color:var(--ink)}
+}
+/* ---------- 簡報模式：背景透明（外層網站的遮罩透出來），手機置中、右邊大字說明 ---------- */
+.cap{display:none}
+html:has(body.demo){color-scheme:light dark}
+body.demo{background:transparent}
+body.demo .app{grid-template-columns:1fr;height:100vh}
+body.demo .rail,body.demo .ctrl,body.demo .mnotes{display:none}
+body.demo .stage{flex-direction:row;gap:48px;padding:20px}
+body.demo .cap{display:block;width:380px;color:#fff}
+.cap .capn{display:inline-block;font:700 14px var(--round);background:var(--lime);color:var(--ink);border-radius:999px;padding:3px 12px}
+.cap h2{font:700 36px/1.25 var(--round);margin:14px 0 10px;text-wrap:balance}
+.cap p{font-size:19px;line-height:1.7;margin:0;opacity:.92}
+.capctl{display:flex;gap:10px;margin-top:28px}
+.capctl button{border:1.5px solid #fff;background:transparent;color:#fff;border-radius:999px;padding:9px 18px;font-weight:700;font-size:15px}
+.capctl button.pri{background:#fff;color:var(--ink)}
+.capctl button.go{background:var(--lime);color:var(--ink);border-color:var(--lime);font-size:17px;padding:11px 22px;animation:pulse 1.6s ease infinite}
+.capctl button:disabled{opacity:.35;cursor:default}
+.capkey{margin-top:14px;font-size:12.5px;opacity:.65}
+@media (max-width:860px){
+  body.demo .stage{flex-direction:column;gap:12px;padding:12px 16px}
+  body.demo .cap{width:100%;max-width:420px}
+  .cap h2{font-size:22px;margin:8px 0 4px}.cap p{font-size:14px}.capctl{margin-top:10px}.capkey{display:none}
+  /* 真的手機上看：不畫手機外框，LINE 畫面佔滿上方，說明固定在下方 */
+  body.demo .app{height:100dvh}
+  body.demo .stage{display:flex;flex-direction:column;gap:0;padding:0;height:100dvh;justify-content:flex-start}
+  body.demo .phonewrap{flex:1;min-height:0;width:100%!important;height:auto!important}
+  body.demo .phone{width:100%;height:100%;transform:none;padding:0;border-radius:0;box-shadow:none;background:#000}
+  body.demo .screen{border-radius:0}
+  body.demo .island{display:none}
+  body.demo .cap{flex:none;max-width:none;padding:10px 16px calc(14px + env(safe-area-inset-bottom));background:rgba(14,20,16,.92)}
+}
+html:has(body.phonemode),body.phonemode{background:transparent;color-scheme:light dark;overflow:hidden}
+body.phonemode .app{display:block;height:100vh}
+body.phonemode .rail,body.phonemode .ctrl,body.phonemode .mnotes,body.phonemode .cap{display:none}
+body.phonemode .stage{padding:0;display:block;height:100vh}
+body.phonemode .phonewrap,body.phonemode .phone{width:100vw;height:100vh}
+body.phonemode .phone{transform:none;padding:0;border-radius:0;box-shadow:none;background:#000}
+body.phonemode .screen{border-radius:0}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" aria-label="流程步驟">
+    <header>
+      <div class="brandline"><img src="data:image/png;base64,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" alt=""><div><h1>民眾從 LINE 通知到完成任務</h1></div></div>
+      <p class="sub">點左邊的步驟可以直接跳過去，也可以點手機裡的按鈕往下走。鍵盤左右鍵切換上一步、下一步。</p>
+    </header>
+    <ol class="steps" id="steps"></ol>
+  </aside>
+  <main class="stage">
+    <div class="phonewrap" id="pw"><div class="phone"><div class="screen" id="scr"></div></div></div>
+    <div class="ctrl">
+      <button type="button" id="prev">‹ 上一步</button>
+      <span id="pos"></span>
+      <button type="button" id="next" class="pri">下一步 ›</button>
+      <button type="button" id="reset">重來</button>
+    </div>
+    <div class="mnotes" id="mnotes"></div>
+    <aside class="cap" id="cap" aria-live="polite"></aside>
+  </main>
+</div>
+
+<script>
+const DEMO = new URLSearchParams(location.search).has('demo');
+// 手機模式（?phone=1）：給網站的手機面板用，只有手機畫面、自由操作
+const PHONE = new URLSearchParams(location.search).has('phone');
+const LOGO = 'data:image/png;base64,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';
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------- 步驟：從既有官方帳號的入口開始，到點數入帳；加一條 30 秒觀察的支線 ---------- */
+const STEPS = [
+  { id: 'entry', g: '入口', t: '既有的臺北市政府官方帳號', why: '不另開新帳號，沿用已經有大量好友的「臺北市政府」官方帳號。原本的選單保留不動，只在「訂閱市政」裡多一個「鼠患風險通知」，第一次接觸的人從這裡進來。' },
+  { id: 'sub', g: '入口', t: '訂閱鼠患風險通知', why: '在 LINE 裡開網頁（LIFF）選主題和地區：預設用目前位置，也可以加公司、學校附近。同一頁就講清楚多久通知一次，順便問要不要收附近的志工任務。' },
+  { id: 'subdone', g: '入口', t: '選單多了一個分頁', why: '訂閱後，這個人的選單上方多一排分頁：「市政服務」是原本的選單，「有鼠請回答」是新的。沒訂閱的人看到的選單完全不變，不會影響既有使用者。' },
+  { id: 'notify', g: '通知與加入', t: '收到推播', why: '只推給訂閱這一區的人，而且風險升到 2 級以上才推、每區每週最多 1 則，避免變成騷擾，也控制官方帳號的推播費用。文案一句講風險、一句講「你可以做什麼」。' },
+  { id: 'open', g: '通知與加入', t: '打開看風險', why: '訊息只放三件事：哪裡、幾級、為什麼，下面兩個按鈕。地圖和細節收進「看風險地圖」，訊息本身在一個手機畫面內看得完。' },
+  { id: 'help', g: '通知與加入', t: '看可以幫忙的任務', why: '只列不碰老鼠的安全任務，左右滑動。每張卡只有一行重點：期限、還缺幾人、幾點；安全規則濃縮成一句，完整說明放在加入後的回報頁。' },
+  { id: 'join', g: '通知與加入', t: '加入任務', why: '確認卡只回答「我接下來要做什麼」：去哪裡領裝備、到了按哪個按鈕。不能去可以退出，不扣點，降低加入的門檻。' },
+  { id: 'start', g: '現場', t: '到現場回報', why: '詳細步驟放在這一頁，而不是塞在聊天訊息裡。先確認位置，再拍整理前、整理後兩張照片。發現鼠跡或死鼠就打開開關，系統轉給清潔隊，民眾不用自己處理。' },
+  { id: 'submit', g: '現場', t: '送出，等待驗收', why: '回一張進度卡，用和市府派案頁一樣的四個階段（發布、招募、執行、驗收），讓民眾知道現在卡在哪、多久會有結果。' },
+  { id: 'notify2', g: '完成', t: '驗收通過推播', why: '驗收是點數入帳的時機，這時推播一次，讓努力被看見。這則屬於「你自己的任務」，不算在每週推播次數裡。' },
+  { id: 'done', g: '完成', t: '點數入帳', why: '完成卡只放這次拿到的點數和離下一級還差多少。徽章、完成紀錄、兌換都收進選單的「我的點數」，想看的人再點。最後一句預告 2 週後會回報這一帶的鼠跡變化，把任務接回「任務完成不等於問題解決」的循環。' },
+  { id: 'obs', branch: true, t: '30 秒觀察餌盒', why: '任務卡的第二張：從外面看一眼餌盒，點一個選項就完成，不用拍照也不用填表。選「有咬痕」會成為鼠跡紀錄，選「盒子壞了」直接通知社區環境衛生師。' }
+];
+const MAIN = STEPS.filter(s => !s.branch).length;
+const IDX = id => STEPS.findIndex(s => s.id === id);
+
+/* ---------- 狀態：跳到任一步時，從頭重播到那一步，聊天紀錄才會一致 ---------- */
+let S, cur = 0, lastCount = 0, lastLiff = null, toastT;
+function fresh() {
+  return { screen: 'chat', notif: 1, clock: '20:12', date: '10月9日 星期五', liff: null, msgs: [], qr: [], rich: true, tab: 'city', subbed: false,
+    joined: false, done: false, obs: null, pts: 120, photos: [false, false], rat: false, ratKinds: new Set(), topics: new Set(['alert', 'rat']), wantTask: true };
+}
+const OPS = {
+  entry() {
+    S.msgs.push({ k: 'day', v: '10/9（五）' },
+      { k: 'bot', v: '歡迎加入臺北市政府官方帳號！市政福利、重大公告、活動消息都會在這裡通知你。', tm: '20:10' });
+  },
+  sub() { S.liff = 'sub'; },
+  subdone() {
+    S.liff = null; S.subbed = true; S.tab = 'rat'; S.rich = true; S.clock = '20:14';
+    S.msgs.push({ k: 'bot', v: subCard(), tm: '20:14', html: true },
+      { k: 'bot', v: '選單上方多了「有鼠請回答」分頁，通報老鼠、附近任務和點數都在這裡。', tm: '20:14' });
+  },
+  notify() { Object.assign(S, { screen: 'lock', notif: 1, clock: '18:20', date: '10月23日 星期五' }); },
+  open() {
+    S.screen = 'chat'; S.clock = '18:21'; S.rich = DEMO || PHONE;
+    S.msgs.push({ k: 'day', v: '10/23（五）' }, { k: 'bot', v: alertCard(), tm: '18:20', html: true });
+  },
+  help() {
+    S.liff = null; S.rich = false; S.clock = '18:23';
+    S.msgs.push({ k: 'me', v: '我可以幫忙', tm: '18:23' }, { k: 'bot', v: taskCarousel(), tm: '18:23', html: true, car: true });
+  },
+  join() {
+    S.joined = true; S.clock = '18:24';
+    S.msgs.push({ k: 'me', v: '我順路，加入環境清潔', tm: '18:24' }, { k: 'bot', v: joinCard(), tm: '18:24', html: true });
+  },
+  start() {
+    S.clock = '09:32'; S.date = '10月24日 星期六';
+    S.msgs.push({ k: 'day', v: '10/24（六）' });
+    S.liff = 'report'; S.photos = [false, false]; S.rat = false; S.ratKinds = new Set();
+  },
+  submit() {
+    S.liff = null; S.clock = '09:48';
+    S.msgs.push({ k: 'bot', v: pendingCard(), tm: '09:48', html: true });
+  },
+  notify2() { Object.assign(S, { screen: 'lock', notif: 2, clock: '15:40' }); },
+  done() {
+    S.screen = 'chat'; S.done = true; S.pts = 130; S.clock = '15:41';
+    S.msgs.push({ k: 'bot', v: doneCard(), tm: '15:40', html: true });
+  },
+  obs(pick = '有咬痕') {
+    S.obs = pick;
+    S.msgs.push({ k: 'me', v: `雙連-02：${pick}`, tm: S.clock }, { k: 'bot', v: obsCard(pick), tm: S.clock, html: true });
+  }
+};
+// 主線依序；支線＝走到「看任務」之後點第二張卡
+const PATH = i => (STEPS[i].branch ? ['entry', 'sub', 'subdone', 'notify', 'open', 'help', 'obs'] : STEPS.slice(0, i + 1).map(s => s.id));
+function build(i) { S = fresh(); for (const id of PATH(i)) OPS[id](); }
+
+/* ---------- Flex 卡片：每張只放「現在要知道的事」和下一步的按鈕 ---------- */
+const MK = `<div class="mk"><i><b style="background:var(--l1)"></b><b style="background:var(--l2)"></b><b style="background:var(--l3)"></b><b style="background:var(--l4)"></b><b style="background:var(--l5)"></b></i>有鼠請回答</div>`;
+function subCard() {
+  return `<div class="fx"><div class="fx-hd cream">${MK}<h3>已訂閱鼠患風險通知</h3><div class="s">雙連市場周邊（目前位置）</div></div>
+  <div class="fx-bd"><div class="small">風險升到 2 級以上才通知，每週最多 1 則。</div></div></div>`;
+}
+function alertCard() {
+  return `<div class="fx"><div class="fx-hd warn">${MK}<h3>雙連市場周邊<br>風險升到 2 級</h3><div class="s">近 2 週 9 筆見鼠通報，多和廚餘有關</div></div>
+  <div class="fx-bd"><div class="btns"><button type="button" class="fb" data-go="help">我可以幫忙</button><button type="button" class="fb line" data-go="map">看風險地圖</button></div></div></div>`;
+}
+function taskCarousel() {
+  const j = S.joined, d = S.done, o = S.obs;
+  const c1 = `<div class="fx"><div class="fx-hd">${MK}<h3>環境清潔</h3><div class="s">雙連市場周邊・180 公尺</div></div>
+  <div class="fx-bd">
+    <div class="facts"><span><small>期限</small>10/24（六）</span><span><small>還缺</small>${j ? 1 : 2} 人</span><span><small>完成可得</small>+10 點</span></div>
+    <div class="meter"><i style="width:${j ? 75 : 50}%"></i></div>
+    <div class="safe">戴手套，不碰老鼠、鼠屍與毒餌</div>
+    <div class="btns">${d ? '<button type="button" class="fb" disabled>已完成</button>' : j ? '<button type="button" class="fb" disabled>已加入</button>' : '<button type="button" class="fb" data-go="join">我順路，加入</button>'}</div>
+  </div></div>`;
+  const c2 = `<div class="fx"><div class="fx-hd lil">${MK}<h3>看一眼餌盒</h3><div class="s">雙連-02・220 公尺・+8 點</div></div>
+  <div class="fx-bd">
+    <div>從外面看就好，不開盒。你看到：</div>
+    <div class="opts">${['餌塊完整', '有咬痕', '被吃掉大半', '盒子壞了'].map(x => `<button type="button" class="${o === x ? 'picked' : ''}" data-obs="${x}" ${o ? 'disabled' : ''}>${x}</button>`).join('')}</div>
+  </div></div>`;
+  const c3 = `<div class="fx" style="width:150px;display:grid;place-items:center;text-align:center;padding:18px 12px;gap:8px;align-content:center">
+    <b>中山區還有 6 件</b><button type="button" class="fb line" data-act="more">看更多</button></div>`;
+  return `<div class="car">${c1}${c2}${c3}</div>`;
+}
+function joinCard() {
+  return `<div class="fx"><div class="fx-hd">${MK}<h3>已加入：環境清潔</h3><div class="s">10/24（六）前・3／4 人</div></div>
+  <div class="fx-bd">
+    <div class="small">手套和垃圾袋可到雙連里辦公處領（週六 9:00–12:00）。到了再按下面的按鈕。</div>
+    <div class="btns"><button type="button" class="fb" data-go="start">到現場了，開始</button><button type="button" class="fb ghost" data-act="quit">不能去了，退出（不扣點）</button></div>
+  </div></div>`;
+}
+function pendingCard() {
+  return `<div class="fx"><div class="fx-hd cream">${MK}<h3>已送出，等待驗收</h3><div class="s">里辦公處通常 24 小時內驗收</div></div>
+  <div class="fx-bd">
+    <div class="track"><span class="ok">發布</span><span class="ok">招募</span><span class="ok">執行</span><span class="now">驗收</span></div>
+    ${S.rat ? '<div class="small">你回報的鼠跡已轉給中山區清潔隊。</div>' : ''}
+  </div></div>`;
+}
+function idCard(pts, streak) {
+  return `<div class="idc"><div class="r1">打鼠特攻隊員證<small>隊員編號 108432</small></div><div class="pts">${pts}<small>點</small></div>
+    <div class="lvtxt">正式隊員<span>・再 ${150 - pts} 點升級為小隊長</span></div><div class="meter"><i style="width:${Math.round(pts / 150 * 100)}%"></i></div>
+    <div class="small" style="margin-top:4px">連續出勤 ${streak} 天</div></div>`;
+}
+function doneCard() {
+  return `<div class="fx"><div class="fx-hd">${MK}<h3>+10 點入帳</h3><div class="s">環境清潔・雙連市場周邊</div></div>
+  <div class="fx-bd">
+    <div class="ptline"><b>130</b> 點<span>再 20 點升級為小隊長</span></div>
+    <div class="meter"><i style="width:87%"></i></div>
+    <div class="small">11/7 會告訴你這一帶的鼠跡有沒有變少。</div>
+    <div class="btns"><button type="button" class="fb line" data-act="points">我的點數與徽章</button></div>
+  </div></div>`;
+}
+function pointsCard() {
+  const ob = S.obs ? 1 : 0;
+  return `<div class="fx wide"><div class="fx-hd">${MK}<h3>我的點數</h3><div class="s">雙連小幫手</div></div>
+  <div class="fx-bd">${idCard(S.pts, S.done ? 5 : 4)}
+    <div class="h5">徽章</div>
+    <div class="badges"><span>第一次清潔</span><span>垃圾代收達人</span><span class="off">連續出勤 7 天 ${S.done ? 5 : 4}／7</span><span class="off">餌站觀察員 ${ob}／3</span></div>
+    <div class="h5">最近完成</div>
+    <div class="log">${S.done ? '<div class="nw">10/24・環境清潔・雙連市場周邊</div>' : ''}<div>10/21・環境清潔・雙連市場周邊</div><div>10/20・垃圾代收・雙連市場周邊</div></div>
+    <div class="btns"><button type="button" class="fb" data-act="redeem">兌換防鼠小物</button></div>
+  </div></div>`;
+}
+function obsCard(pick) {
+  const rat = pick === '有咬痕' || pick === '被吃掉大半';
+  const msg = rat ? '已記成這個站的鼠跡紀錄，市府地圖上的雙連-02 會變色。'
+    : pick === '盒子壞了' ? '已通知社區環境衛生師，3 天內到場檢查。'
+    : '這也是有用的紀錄：代表這個點目前沒有鼠跡。';
+  return `<div class="fx"><div class="fx-hd lil">${MK}<h3>收到！+8 點</h3><div class="s">雙連-02・餌站觀察員 1／3</div></div>
+  <div class="fx-bd"><div class="small">${msg}</div></div></div>`;
+}
+function redeemCard() {
+  return `<div class="fx wide"><div class="fx-hd cream">${MK}<h3>點數兌換</h3><div class="s">可用 ${S.pts} 點・離你最近的兌換點</div></div>
+  <div class="fx-bd"><div class="redeem">
+    <div><b>雙連里辦公處</b><em>垃圾袋 20 點</em><span>150 公尺・週一至週六</span></div>
+    <div><b>中山區清潔隊</b><em>洗碗精 40 點</em><span>900 公尺・週一至週五</span></div>
+    <div><b>中山區公所</b><em>防鼠門擋 80 點</em><span>1.2 公里・週一至週五</span></div></div>
+    <div class="btns"><button type="button" class="fb" data-act="redeemgo">選地點與品項</button></div></div></div>`;
+}
+function settingCard() {
+  return `<div class="fx"><div class="fx-hd cream">${MK}<h3>通知設定</h3><div class="s">訂閱：雙連市場周邊</div></div>
+  <div class="fx-bd"><div class="small">風險 2 級以上、或附近任務缺人時通知；每週最多 1 則，22:00–08:00 不推播。</div>
+  <div class="btns"><button type="button" class="fb line" data-act="addarea">加一個地方（公司、學校）</button><button type="button" class="fb ghost" data-act="pause">暫停 2 週</button></div></div></div>`;
+}
+function reportIntro() {
+  return `<div class="fx"><div class="fx-hd warn">${MK}<h3>我看到老鼠</h3><div class="s">拍照或打一句話就可以</div></div>
+  <div class="fx-bd"><div class="small">看到死鼠不要碰，拍照就好。送出後可以在這裡追蹤處理進度。</div>
+  <div class="btns"><button type="button" class="fb" data-act="reportgo">開始通報</button></div></div></div>`;
+}
+
+/* ---------- 畫面 ---------- */
+const ICON = {
+  back: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  close: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  more: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+  search: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>',
+  shield: '<svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5z" fill="#06c755"/><path d="M8 12l3 3 5-6" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  line: '<svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><path d="M12 3C6.5 3 2 6.6 2 11c0 3.9 3.5 7.2 8.3 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1 .9.5s6-3.5 8.2-6.1C21.6 14.2 22 12.7 22 11c0-4.4-4.5-8-10-8z"/></svg>',
+  plus: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  cam: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="3"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8 7l1.5-3h5L16 7"/></svg>',
+  kb: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 9h.01M10.5 9h.01M14 9h.01M17 9h.01M7 12.5h.01M10.5 12.5h.01M14 12.5h.01M17 12.5h.01M8 16h8"/></svg>',
+  menu: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 12h18M12 12v7"/></svg>',
+  chev: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+  pin: '<svg width="18" height="18" viewBox="0 0 24 24" fill="var(--green)"><path d="M12 2a7 7 0 00-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 00-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5.5z"/></svg>'
+};
+const RI = {
+  task: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-10"/></svg>',
+  map: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/></svg>',
+  pts: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9" r="5"/><path d="M8.5 13l-1.5 8 5-2.5 5 2.5-1.5-8"/></svg>',
+  bell: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 8a6 6 0 0112 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 004 0"/></svg>',
+  cam: '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="3"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8 7l1.5-3h5L16 7"/></svg>'
+};
+/* 原本的市政選單（依截圖的五個入口重畫，不放吉祥物）；訂閱後多一排分頁 */
+function richHTML() {
+  const tabs = S.subbed ? `<div class="rtabs" role="tablist"><button type="button" role="tab" data-tab="city" aria-selected="${S.tab === 'city'}">市政服務</button><button type="button" role="tab" data-tab="rat" aria-selected="${S.tab === 'rat'}">有鼠請回答</button></div>` : '';
+  if (S.tab === 'rat') return `<div class="rich rat">${tabs}<div class="rgrid">
+    <button type="button" class="big" data-act="report"><span>${RI.cam}</span><b>我看到老鼠</b><small>拍照通報</small></button>
+    <button type="button" data-act="more"><span>${RI.task}</span><b>附近任務</b>${S.done ? '' : '<i class="badge">2</i>'}</button>
+    <button type="button" data-act="map"><span>${RI.map}</span><b>風險地圖</b></button>
+    <button type="button" data-act="points"><span>${RI.pts}</span><b>我的點數</b><small>${S.pts} 點</small></button>
+    <button type="button" data-act="setting"><span>${RI.bell}</span><b>通知設定</b></button></div></div>`;
+  const c = (a, n, extra = '') => `<button type="button" class="circ${extra}" data-act="${a}"><span>${n}</span></button>`;
+  return `<div class="rich city">${tabs}<div class="cgrid">
+    <div class="cdeco" aria-hidden="true"><b>臺北市政府</b><small>示意，原圖為吉祥物插畫</small></div>
+    ${c('city', '我是<br>台北人')}${c('city', 'QA<br>小幫手')}${c('cityreport', '市民<br>通報')}${c('subscribe', '訂閱<br>市政', S.subbed ? '' : ' hl')}${c('city', '行動防災<br>APP')}</div>
+    ${S.subbed ? '' : '<span class="newtag">新增：鼠患通知</span>'}</div>`;
+}
+function sbar(dark) {
+  return `<div class="island"></div><div class="sbar${dark ? ' dark' : ''}"><span>${S.clock}</span><span class="ic"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.5" width="3" height="9.5" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x=".5" y=".5" width="22" height="11" rx="3" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="15" height="8" rx="1.5" fill="currentColor"/><rect x="24" y="4" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".5"/></svg></span></div>`;
+}
+function lockHTML() {
+  const n1 = `<button type="button" class="notif" data-go="open"><span class="appic">${ICON.line}</span><span><span class="top"><b>臺北市政府</b><span>現在</span></span><p>你訂閱的「雙連市場周邊」本週鼠患風險升高為 2 級。點這裡看周邊的風險與可以幫忙的事。</p></span></button>`;
+  const n2 = `<button type="button" class="notif" data-go="done"><span class="appic">${ICON.line}</span><span><span class="top"><b>臺北市政府</b><span>現在</span></span><p>雙連市場周邊的環境清潔已驗收通過，+10 點入帳。</p></span></button>`;
+  return `${sbar(true)}<div class="lock"><div class="date">${S.date}</div><div class="clock">${S.clock.replace(/^0/, '')}</div>
+    <div class="nlist">${S.notif === 2 ? n2 : n1}</div><div class="tap">點通知打開 LINE</div><span class="flash"></span><span class="cam"></span><span class="bar"></span></div>`;
+}
+const AV = '<span class="cityav">臺北</span>';
+function msgHTML(m, i, prev) {
+  if (m.k === 'day') return `<div class="day" data-i="${i}"><span>${m.v}</span></div>`;
+  if (m.k === 'sys') return `<div class="sysmsg" data-i="${i}">${m.v}</div>`;
+  if (m.k === 'me') return `<div class="row me" data-i="${i}"><span class="tm"><b>已讀</b>${m.tm}</span><div class="bub">${esc(m.v)}</div></div>`;
+  const first = !prev || prev.k !== 'bot';
+  const body = m.html ? m.v : `<div class="bub">${esc(m.v)}</div>`;
+  if (m.car) return `<div class="row" data-i="${i}"><span class="av ghost"></span><div class="col" style="flex:1;min-width:0">${body}</div></div>`;
+  return `<div class="row" data-i="${i}"><span class="av${first ? '' : ' ghost'}">${AV}</span><div class="col">${first ? '<span class="who">臺北市政府</span>' : ''}<div style="display:flex;gap:6px;align-items:flex-end">${body}<span class="tm">${m.tm}</span></div></div></div>`;
+}
+function chatHTML() {
+  const msgs = S.msgs.map((m, i) => msgHTML(m, i, S.msgs[i - 1])).join('');
+  const qr = S.qr.length ? `<div class="qr">${S.qr.map(q => `<button type="button" data-qr="${q}">${q}</button>`).join('')}</div>` : '';
+  const label = S.tab === 'rat' ? '有鼠請回答' : '市政選單';
+  // 和 LINE 一樣：選單打開時下面是「鍵盤＋選單名稱」，收起來時是一般輸入列
+  const bottom = S.rich
+    ? `${richHTML()}<div class="rmbar"><span class="kb">${ICON.kb}</span><button type="button" class="rmtog" id="rmtog" aria-expanded="true">${label} ${ICON.chev}</button><span></span></div>`
+    : `<div class="inbar"><button type="button" class="kb" id="rmtog" aria-expanded="false" aria-label="打開選單">${ICON.menu}</button><span class="kb">${ICON.cam}</span><span class="field">Aa</span><span></span></div>`;
+  return `${sbar(false)}<div class="chat">
+    <div class="chd"><span>${ICON.back}</span><div class="ttl">${ICON.shield}<span>臺北市政府<small>官方帳號</small></span></div><div class="acts">${ICON.search}${ICON.more}</div></div>
+    <div class="msgs" id="msgs">${msgs}</div>${qr}${bottom}
+    <div class="homebar"><i></i></div></div>${S.liff ? liffHTML() : ''}`;
+}
+function hexMap() {
+  // 雙連市場周邊的示意格子：中間那格是訂閱區
+  const cells = [];
+  const W = 34, H = 30;
+  const lv = [[4, 5, 4, 5, 4, 5], [5, 3, 4, 3, 5, 4], [4, 4, 2, 2, 3, 5], [5, 3, 2, 3, 4, 4], [4, 5, 3, 4, 5, 4], [5, 4, 5, 4, 4, 5]];
+  const col = { 2: 'var(--l2)', 3: '#9fc0de', 4: '#cfe5c8', 5: '#f2efe4' };
+  for (let r = 0; r < 6; r++) for (let c = 0; c < 6; c++) {
+    const x = 26 + c * W + (r % 2 ? W / 2 : 0), y = 24 + r * H, l = lv[r][c];
+    const pts = [0, 1, 2, 3, 4, 5].map(k => { const a = Math.PI / 180 * (60 * k - 30); return `${(x + 19.5 * Math.cos(a)).toFixed(1)},${(y + 19.5 * Math.sin(a)).toFixed(1)}`; }).join(' ');
+    cells.push(`<polygon points="${pts}" fill="${col[l]}" stroke="${r === 2 && c === 2 ? '#2a2a2a' : '#fff'}" stroke-width="${r === 2 && c === 2 ? 2.5 : 1.5}"/>`);
+  }
+  return `<svg viewBox="0 0 250 200" role="img" aria-label="雙連市場周邊風險示意地圖">${cells.join('')}
+    <path d="M10 150 L240 60" stroke="#fff" stroke-width="6"/><path d="M120 0 L135 200" stroke="#fff" stroke-width="5"/>
+    <text x="196" y="72" font-size="8" fill="#6d6a61" transform="rotate(-21 196 72)">民生西路</text>
+    <g transform="translate(108,77)"><circle r="7" fill="var(--green)" stroke="#fff" stroke-width="2"/><text x="10" y="4" font-size="9" font-weight="700">清潔</text></g>
+    <g transform="translate(140,98)"><rect x="-6" y="-6" width="12" height="12" rx="3" fill="var(--purple)" stroke="#fff" stroke-width="2"/><text x="9" y="4" font-size="9" font-weight="700">雙連-02</text></g>
+    <g transform="translate(96,108)"><circle r="9" fill="var(--blue)" opacity=".25"/><circle r="5" fill="var(--blue)" stroke="#fff" stroke-width="2"/></g>
+    <text x="70" y="128" font-size="9" font-weight="700" fill="var(--blue)">你在這裡</text></svg>`;
+}
+function liffHTML() {
+  const hd = t => `<div class="lhd"><span></span><b>${t}<small>liff.line.me</small></b><button type="button" data-act="closeliff" aria-label="關閉">${ICON.close}</button></div>`;
+  if (S.liff === 'sub') {
+    const tp = (k, n, d, isNew) => `<button type="button" class="toggle${isNew ? ' newt' : ''}" data-topic="${k}" aria-pressed="${S.topics.has(k)}"><span>${n}${isNew ? '<i class="nb">新</i>' : ''}<small>${d}</small></span><span class="sw"></span></button>`;
+    const on = S.topics.has('rat');
+    return `<div class="liff">${hd('訂閱市政')}
+    <div class="lbd">
+      <div class="sec"><h4>想收到哪些通知？</h4><div class="tlist">
+        ${tp('alert', '重大訊息', '颱風、停班停課、交通管制')}
+        ${tp('event', '市政活動', '展覽、講座、親子活動')}
+        ${tp('rat', '鼠患風險通知', '你關心的地方風險升高時告訴你', true)}</div></div>
+      ${on ? `<div class="sec"><h4>鼠患通知：哪一帶？</h4>
+        <div class="okloc">${ICON.pin}<span><b>雙連市場周邊</b>（目前位置，半徑約 500 公尺）</span></div>
+        <button type="button" class="addloc" data-act="addarea">＋ 加一個地方，例如公司或學校附近</button></div>
+      <div class="sec"><button type="button" class="toggle" data-act="wanttask" aria-pressed="${S.wantTask}"><span>也通知我附近缺人的志工任務<small>不碰老鼠的安全任務，完成可以拿點數</small></span><span class="sw"></span></button></div>
+      <div class="small">風險升到 2 級以上才通知，每區每週最多 1 則；22:00–08:00 不推播。隨時可以在選單裡關掉。</div>` : ''}
+    </div>
+    <div class="lft"><button type="button" class="fb" data-go="subdone">完成訂閱</button></div></div>`;
+  }
+  if (S.liff === 'map') return `<div class="liff">${hd('周邊風險')}
+    <div class="lbd">
+      <div><div class="lvl" style="font-size:16px"><span class="ld l2">2</span>雙連市場周邊・優先處理</div><div class="small" style="margin-top:4px">第 41 週（上週 4 級）・粗框是你訂閱的區域</div></div>
+      <div class="mapbox">${hexMap()}</div>
+      <div class="legend"><span><i style="background:var(--l2)"></i>2 級</span><span><i style="background:#9fc0de"></i>3 級</span><span><i style="background:#cfe5c8"></i>4 級</span><span><i style="background:#f2efe4"></i>5 級</span><span><i style="background:var(--green);border-radius:50%"></i>志工任務</span><span><i style="background:var(--purple)"></i>監測餌盒</span></div>
+      <div class="stat3"><div><b>9</b><span>近 2 週通報</span></div><div><b>+6</b><span>比前 2 週</span></div><div><b>5</b><span>提到廚餘垃圾</span></div></div>
+      <div class="box"><b>為什麼升級？</b>通報集中在市場民生西路側，多數提到夜間廚餘堆放。市府已請清潔隊加強收運，並請市場攤商做好收攤後清潔。</div>
+      <a class="small" href="261023_有鼠請回答_V7_手機版與點數兌換_Cola.html" target="_blank" rel="noopener" style="color:var(--green-d);font-weight:700">開啟完整地圖 ›</a>
+    </div>
+    <div class="lft"><button type="button" class="fb" data-go="help">看我可以幫忙的事</button></div></div>`;
+  if (S.liff === 'report') {
+    const ok = S.photos[0] && S.photos[1];
+    const ph = (i, lab) => S.photos[i]
+      ? `<button type="button" class="ph on" data-photo="${i}" aria-label="${lab}，已拍">${photoSVG(i)}<span class="lab">${lab}</span><span class="cap">${i ? '09:44' : '09:35'}・位置已記錄</span></button>`
+      : `<button type="button" class="ph" data-photo="${i}">${ICON.cam.replace('#666', 'currentColor')}<span>拍${lab}</span></button>`;
+    return `<div class="liff">${hd('環境清潔回報')}
+    <div class="lbd">
+      <div class="okloc">${ICON.pin}<span>你在任務範圍內（離集合點約 30 公尺）</span></div>
+      <div class="box red">戴手套。不碰老鼠、鼠屍、鼠糞、毒餌與捕鼠籠；看到了用下面的開關回報就好。</div>
+      <div class="sec chk"><h4>步驟</h4>
+        <label><input type="checkbox" checked><span>戴上手套<small>里辦公處領的或自己的都可以</small></span></label>
+        <label><input type="checkbox" ${S.photos[0] ? 'checked' : ''} disabled><span>拍整理前</span></label>
+        <label><input type="checkbox" ${S.photos[1] ? 'checked' : ''}><span>清理騎樓、人行道與水溝蓋周邊的垃圾與廚餘</span></label>
+        <label><input type="checkbox" ${S.photos[1] ? 'checked' : ''} disabled><span>拍整理後</span></label></div>
+      <div class="sec"><h4>照片</h4><div class="photos">${ph(0, '整理前')}${ph(1, '整理後')}</div></div>
+      <button type="button" class="toggle" data-act="rat" aria-pressed="${S.rat}"><span>有發現鼠跡或死鼠嗎？</span><span class="sw"></span></button>
+      ${S.rat ? `<div class="box red"><b>不要碰。</b>選一下你看到什麼，我們會轉給清潔隊，並幫你另外記一筆通報。<div class="chips" style="margin-top:8px">${['鼠糞', '咬痕', '鼠洞', '死鼠', '看到活鼠'].map(k => `<button type="button" data-rk="${k}" aria-pressed="${S.ratKinds.has(k)}">${k}</button>`).join('')}</div></div>` : ''}
+      <div class="sec"><h4>備註（選填）</h4><textarea id="note" placeholder="例如：水溝蓋旁有一包廚餘，已清掉"></textarea></div>
+    </div>
+    <div class="lft"><button type="button" class="fb" data-go="submit" ${ok ? '' : 'disabled'}>送出回報</button><div class="small">${ok ? '送出後由雙連里辦公處驗收，通過即入帳 +10 點' : '拍完整理前、整理後兩張照片就可以送出'}</div></div></div>`;
+  }
+  return '';
+}
+function photoSVG(i) {
+  // 示意照片：騎樓地面＋垃圾袋（整理前）／乾淨地面（整理後）
+  const ground = '<rect width="160" height="120" fill="#c9c3b4"/><rect y="70" width="160" height="50" fill="#a9a293"/><rect x="0" y="0" width="160" height="40" fill="#8b8f86"/><rect x="60" y="78" width="40" height="18" rx="2" fill="#6f6a5e"/><g stroke="#5d594f" stroke-width="1.2"><path d="M64 80v14M70 80v14M76 80v14M82 80v14M88 80v14M94 80v14"/></g>';
+  const trash = '<ellipse cx="40" cy="88" rx="20" ry="16" fill="#3c3c3c"/><ellipse cx="58" cy="94" rx="14" ry="11" fill="#555"/><circle cx="112" cy="96" r="6" fill="#d8c27a"/><rect x="118" y="86" width="14" height="8" rx="2" fill="#e8e3d6" transform="rotate(20 125 90)"/><path d="M96 104c4-3 9-2 12 1" stroke="#8a6d3b" stroke-width="3" fill="none"/>';
+  const clean = '<rect x="20" y="74" width="16" height="30" rx="3" fill="var(--green)"/><rect x="18" y="70" width="20" height="6" rx="2" fill="#2f6a37"/>';
+  return `<svg class="pic" viewBox="0 0 160 120" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${ground}${i ? clean : trash}</svg>`;
+}
+
+/* ---------- 渲染 ---------- */
+function render(anim) {
+  const scr = $('#scr');
+  // 回報頁裡點照片、開關時會整頁重畫，捲動位置和備註要留著
+  const lb = $('.lbd'), keep = lb && S.liff ? { top: lb.scrollTop, note: $('#note') ? $('#note').value : '' } : null;
+  scr.innerHTML = S.screen === 'lock' ? lockHTML() : chatHTML();
+  if ($('.liff') && S.liff === lastLiff) $('.liff').style.animation = 'none';
+  lastLiff = S.liff;
+  if (keep && $('.lbd')) { $('.lbd').scrollTop = keep.top; if ($('#note')) $('#note').value = keep.note; }
+  const box = $('#msgs');
+  if (box) {
+    box.querySelectorAll('[data-i]').forEach(el => {
+      const i = +el.dataset.i;
+      if (anim && i >= lastCount) { el.classList.add('in'); el.style.animationDelay = (i - lastCount) * 0.18 + 's'; }
+    });
+    box.style.scrollBehavior = 'auto';
+    // 新訊息很長時，捲到新訊息的開頭，而不是最底下
+    const last = box.lastElementChild;
+    box.scrollTop = last && last.offsetHeight > box.clientHeight - 20 ? last.offsetTop - 10 : box.scrollHeight;
+    requestAnimationFrame(() => (box.style.scrollBehavior = ''));
+  }
+  lastCount = S.msgs.length;
+  renderRail();
+}
+function renderRail() {
+  let h = '', g = '';
+  STEPS.forEach((s, i) => {
+    const grp = s.branch ? '支線' : s.g;
+    if (grp !== g) { h += `<li class="grp">${grp}</li>`; g = grp; }
+    h += `<li><button type="button" class="step${!s.branch && !STEPS[cur].branch && i < cur ? ' past' : ''}" data-step="${i}" ${i === cur ? 'aria-current="step"' : ''}><span class="n">${s.branch ? '+' : i + 1}</span><span><b>${s.t}${s.branch ? '<span class="tag">從任務卡第二張</span>' : ''}</b><span class="why">${s.why}</span></span></button></li>`;
+  });
+  $('#steps').innerHTML = h;
+  const st = STEPS[cur];
+  $('#pos').textContent = st.branch ? '支線' : `${cur + 1}／${MAIN}`;
+  $('#prev').disabled = cur === 0;
+  $('#next').disabled = !st.branch && cur >= MAIN - 1;
+  $('#mnotes').innerHTML = `<b>${st.branch ? '支線' : cur + 1}．${st.t}</b><br>${st.why}`;
+  const a = $('#steps [aria-current]');
+  if (a && innerWidth <= 860) a.scrollIntoView({ inline: 'center', block: 'nearest' });
+  if (DEMO) demoCap();
+  if (PHONE && STEPS[cur].id === 'submit' && !phoneSent) { phoneSent = true; tourMsg('submitted'); }
+}
+function jump(i) { cur = i; build(i); lastCount = S.msgs.length; render(false); }
+const SKIP = { notify: ['兩週後', '10/23（五）傍晚'], start: ['隔天早上', '10/24（六）09:30・到了雙連市場'], notify2: ['當天下午', '里辦公處看過照片，驗收通過'] };
+function go(id, extra) {
+  // 風險地圖不是一個步驟，任何時候都可以打開
+  if (id === 'map') { if (S.screen === 'chat') { S.liff = 'map'; render(false); } return; }
+  const i = IDX(id);
+  // 觀察餌盒：剛看到任務卡時當成支線；之後再點就只是多一筆紀錄
+  if (id === 'obs') { if (cur === IDX('help')) cur = STEPS.length - 1; OPS.obs(extra); render(true); return; }
+  // 已經走過的步驟（例如從地圖頁回到任務）：只關掉網頁
+  if (id === 'help' && cur >= i) { S.liff = null; render(false); return; }
+  // 主線往下一步：在現有狀態上接著做，訊息會有進場動畫
+  if (i === cur + 1 && !STEPS[cur].branch) {
+    cur = i;
+    if (SKIP[id]) skip(...SKIP[id]);
+    OPS[id](extra); render(true); return;
+  }
+  jump(i);
+}
+function skip(t, sub) {
+  const d = document.createElement('div');
+  d.className = 'timeskip'; d.innerHTML = `<div>${t}<small>${sub}</small></div>`;
+  $('#scr').appendChild(d); setTimeout(() => d.remove(), 1500);
+}
+function toast(t) {
+  document.querySelectorAll('.toast').forEach(x => x.remove());
+  const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; $('#scr').appendChild(d);
+  clearTimeout(toastT); toastT = setTimeout(() => d.remove(), 2600);
+}
+function say(text, card, car) {
+  if (S.screen !== 'chat') return;
+  S.liff = null; S.rich = false;
+  S.msgs.push({ k: 'me', v: text, tm: S.clock });
+  if (card) S.msgs.push({ k: 'bot', v: card, tm: S.clock, html: true, car });
+  render(true);
+}
+
+/* ---------- 事件 ---------- */
+$('#scr').addEventListener('click', e => {
+  const q = s => e.target.closest(s);
+  let b;
+  if ((b = q('[data-go]'))) { go(b.dataset.go); return; }
+  if ((b = q('[data-obs]'))) { go('obs', b.dataset.obs); return; }
+  if ((b = q('[data-photo]'))) { const i = +b.dataset.photo; S.photos[i] = !S.photos[i]; render(false); return; }
+  if ((b = q('[data-rk]'))) { const k = b.dataset.rk; S.ratKinds.has(k) ? S.ratKinds.delete(k) : S.ratKinds.add(k); render(false); return; }
+  if ((b = q('[data-topic]'))) { const k = b.dataset.topic; S.topics.has(k) ? S.topics.delete(k) : S.topics.add(k); render(false); return; }
+  if ((b = q('[data-tab]'))) { S.tab = b.dataset.tab; render(false); return; }
+  if (q('#rmtog')) { S.rich = !S.rich; render(false); return; }
+  if ((b = q('[data-act]'))) {
+    const a = b.dataset.act;
+    if (a === 'closeliff') { S.liff = null; render(false); return; }
+    if (a === 'rat') { S.rat = !S.rat; render(false); return; }
+    if (a === 'wanttask') { S.wantTask = !S.wantTask; render(false); return; }
+    if (a === 'addarea') return toast('示範：在地圖上再選一個地方，例如公司或學校附近');
+    if (S.screen !== 'chat') return;
+    if (a === 'subscribe') return S.subbed ? toast('已訂閱鼠患通知，可在「有鼠請回答 › 通知設定」調整') : go('sub');
+    if (a === 'city') return toast('既有的市政功能，示範不展開');
+    if (a === 'cityreport') return toast('既有的市民通報入口；選「病媒、老鼠」類別會接到「我看到老鼠」同一個流程');
+    if (a === 'report') return say('我看到老鼠', reportIntro());
+    if (a === 'more') return say('附近任務', taskCarousel(), true);
+    if (a === 'map') { S.liff = 'map'; render(false); return; }
+    if (a === 'points') return say('我的點數', pointsCard());
+    if (a === 'redeem') return say('兌換防鼠小物', redeemCard());
+    if (a === 'setting') return say('通知設定', settingCard());
+    if (a === 'quit') return toast('示範：退出不扣點，名額會釋出給附近其他人');
+    if (a === 'reportgo') return toast('示範：開啟通報頁（拍照、AI 判讀級別），完整流程見主原型');
+    if (a === 'redeemgo') return toast('示範：開啟兌換頁，選地點→選品項→拿兌換券，完整流程見主原型');
+    if (a === 'pause') return toast('示範：2 週內不推播風險通知，自己的任務進度照常通知');
+  }
+});
+$('#steps').addEventListener('click', e => { const b = e.target.closest('[data-step]'); if (b) jump(+b.dataset.step); });
+$('#prev').onclick = () => jump(STEPS[cur].branch ? IDX('help') : Math.max(0, cur - 1));
+$('#next').onclick = () => {
+  if (STEPS[cur].branch) return jump(IDX('join'));
+  if (STEPS[cur].id === 'start') S.photos = [true, true];
+  if (cur < MAIN - 1) go(STEPS[cur + 1].id);
+};
+$('#reset').onclick = () => jump(0);
+addEventListener('keydown', e => {
+  if (e.target.closest('textarea')) return;
+  if (e.key === 'ArrowRight') $('#next').click();
+  if (e.key === 'ArrowLeft' && !$('#prev').disabled) $('#prev').click();
+});
+
+/* ---------- 簡報模式（?demo=1）：給網站的導覽視窗用，只走 6 個畫面，最後交回網站 ---------- */
+const DEMO_STEPS = ['notify', 'open', 'help', 'join', 'start', 'submit'];
+const DEMO_CAP = {
+  notify: ['收到通知', '你訂閱的地方鼠患風險升高，臺北市政府 LINE 官方帳號通知你。'],
+  open: ['打開<span style="white-space:nowrap">台北市官方 LINE 帳號</span>', '沿用既有的台北市官方 LINE 帳號，選單多了「有鼠請回答」分頁。訊息只講哪裡、幾級、為什麼。'],
+  help: ['看可以幫忙的事', '附近不碰老鼠的安全任務，左右滑動挑一件。'],
+  join: ['順路就加入', '確認卡只講下一步要做什麼；不能去可以退出，不扣點。'],
+  start: ['到現場拍照回報', '拍整理前、整理後兩張照片；看到鼠跡不要碰，切開關就好。'],
+  submit: ['送出，等市府驗收', '照片送到市府。接下來看市府那一端怎麼處理。'],
+  obs: ['30 秒觀察餌盒', '從外面看一眼，點一個選項就完成。']
+};
+// 真的手機上看（窄螢幕）：結尾回到市民地圖，不接市府
+const NARROW = () => matchMedia('(max-width:860px)').matches;
+const DEMO_CAP_NARROW = { submit: ['送出，等市府驗收', '照片送到市府，驗收通過後點數會入帳，LINE 也會通知你。'] };
+const tourMsg = action => { try { parent.postMessage({ type: 'oa-tour', action }, '*'); } catch (e) {} };
+function demoCap() {
+  const id = STEPS[cur].id, k = DEMO_STEPS.indexOf(id), [t, s] = (NARROW() && DEMO_CAP_NARROW[id]) || DEMO_CAP[id] || [STEPS[cur].t, ''];
+  const last = id === 'submit';
+  $('#cap').innerHTML = `<div class="capn">${k >= 0 ? `${k + 1}／${DEMO_STEPS.length}` : '支線'}</div><h2>${t}</h2><p>${s}</p>
+    <div class="capctl"><button type="button" data-demo="prev" ${k <= 0 ? 'disabled' : ''}>‹ 上一步</button>${last
+      ? `<button type="button" class="go" data-demo="done">${NARROW() ? '完成，回到地圖' : '看市府怎麼驗收 ›'}</button>`
+      : '<button type="button" class="pri" data-demo="next">下一步 ›</button>'}</div>
+    <div class="capkey">← → 切換・Esc 回到網站</div>`;
+}
+function demoNext() {
+  const id = STEPS[cur].id;
+  if (id === 'submit') return tourMsg('done');
+  if (id === 'obs') return jump(IDX('join'));
+  if (id === 'start') S.photos = [true, true];
+  go(DEMO_STEPS[DEMO_STEPS.indexOf(id) + 1]);
+}
+function demoPrev() {
+  const id = STEPS[cur].id, k = DEMO_STEPS.indexOf(id);
+  if (id === 'obs') return jump(IDX('help'));
+  if (k > 0) jump(IDX(DEMO_STEPS[k - 1]));
+}
+if (DEMO) {
+  document.body.classList.add('demo');
+  $('#cap').addEventListener('click', e => {
+    const b = e.target.closest('[data-demo]'); if (!b) return;
+    ({ prev: demoPrev, next: demoNext, done: () => tourMsg('done') })[b.dataset.demo]();
+  });
+  // 鍵盤：在導覽視窗裡用左右鍵、空白鍵換頁，Esc 交回網站
+  addEventListener('keydown', e => {
+    if (e.target.closest('textarea')) return;
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); e.stopImmediatePropagation(); demoNext(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopImmediatePropagation(); demoPrev(); }
+    else if (e.key === 'Escape') tourMsg('close');
+  }, true);
+  // 網站每次打開導覽視窗都從第一個畫面開始
+  addEventListener('message', e => { if (e.data && e.data.type === 'oa-tour' && e.data.action === 'restart') jump(IDX('notify')); });
+}
+
+/* 依視窗高度縮放手機框；手機寬度時填滿寬度 */
+function fit() {
+  if (PHONE) return;
+  const narrow = innerWidth <= 860;
+  if (DEMO) { const s = narrow ? Math.min(1, (innerHeight - 190) / 800, (innerWidth - 32) / 390) : Math.min(1, (innerHeight - 40) / 800, (innerWidth - 500) / 390); $('#pw').style.setProperty('--s', Math.max(0.45, s).toFixed(3)); return; }
+  const s = narrow ? Math.min(1, (innerWidth - 32) / 390) : Math.min(1, (innerHeight - 90) / 800, (innerWidth - 400) / 390);
+  $('#pw').style.setProperty('--s', Math.max(0.5, s).toFixed(3));
+}
+addEventListener('resize', fit); fit();
+/* 手機模式：網站送來「重來」「市府驗收通過」 */
+let phoneSent = false;
+if (PHONE) {
+  document.body.classList.add('phonemode');
+  addEventListener('message', e => {
+    if (!e.data || e.data.type !== 'oa-tour') return;
+    if (e.data.action === 'restart') { phoneSent = false; jump(IDX('notify')); }
+    if (e.data.action === 'verified' && cur === IDX('submit')) go('notify2');
+  });
+  addEventListener('keydown', e => { if (e.key === 'Escape') tourMsg('close'); });
+}
+/* 嵌在網站裡（簡報、手機模式）時，手機瀏覽器的 iframe 常常滑不動：自己處理觸控捲動。
+   先判斷是上下還是左右滑，再找手指底下可以往那個方向捲的區塊（聊天、網頁內容、任務輪播）。 */
+if (DEMO || PHONE) {
+  let x0 = 0, y0 = 0, axis = null, el = null;
+  const canScroll = (n, ax) => {
+    const cs = getComputedStyle(n), ov = ax === 'y' ? cs.overflowY : cs.overflowX;
+    return /(auto|scroll)/.test(ov) && (ax === 'y' ? n.scrollHeight > n.clientHeight + 1 : n.scrollWidth > n.clientWidth + 1);
+  };
+  const find = (t, ax) => { for (let n = t; n && n.nodeType === 1 && n !== document.body; n = n.parentElement) if (canScroll(n, ax)) return n; return null; };
+  addEventListener('touchstart', e => { const p = e.touches[0]; x0 = p.clientX; y0 = p.clientY; axis = null; el = null; }, { passive: true });
+  addEventListener('touchmove', e => {
+    const p = e.touches[0], dx = x0 - p.clientX, dy = y0 - p.clientY;
+    if (!axis) {
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      el = find(e.target, axis);
+      // 拖曳時先關掉吸附，放開再打開，讓輪播停在最近的一張卡
+      if (el) { el.style.scrollBehavior = 'auto'; el.style.scrollSnapType = 'none'; }
+    }
+    if (!el) return;
+    if (axis === 'y') el.scrollTop += dy; else el.scrollLeft += dx;
+    x0 = p.clientX; y0 = p.clientY;
+    e.preventDefault();
+  }, { passive: false });
+  addEventListener('touchend', () => { if (el) { el.style.scrollBehavior = ''; el.style.scrollSnapType = ''; } el = null; }, { passive: true });
+}
+jump(DEMO || PHONE ? IDX('notify') : 0);
+</script>
+</body>
+</html>

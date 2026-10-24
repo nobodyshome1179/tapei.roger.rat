@@ -1,0 +1,16 @@
+/* LINE 市民端導覽視窗 */
+#tourMask{position:fixed;inset:0;z-index:5000;background:rgba(24,36,28,.62);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);opacity:0;visibility:hidden;transition:opacity .35s,visibility 0s .35s}
+#tourMask.on{opacity:1;visibility:visible;transition:opacity .35s}
+#tourMask iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;color-scheme:light dark}
+#tourMask .tourhd{position:absolute;top:16px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:center;z-index:2;pointer-events:none;color:#fff}
+#tourMask .tourhd b{font-size:14px;font-weight:700;background:rgba(0,0,0,.25);border-radius:999px;padding:4px 12px}
+#tourMask .tourhd button{pointer-events:auto;width:40px;height:40px;border-radius:50%;border:1.5px solid #fff;background:rgba(0,0,0,.2);color:#fff;display:grid;place-items:center;cursor:pointer}
+.toplinks #btnTour,#heroTour{display:inline-flex;align-items:center;gap:6px}
+.toplinks #btnTour{background:#06c755;border-color:#06c755;color:#fff;font-weight:700}
+.toplinks #btnTour:hover{background:#05a648;color:#fff}
+#heroTour{margin-top:12px;border:1.5px solid var(--edge);background:var(--paper);color:var(--ink);border-radius:999px;padding:8px 16px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+#heroTour i{width:10px;height:10px;border-radius:50%;background:#06c755}
+@media (max-width:860px){.toplinks #btnTour:not(.mobonly) span{display:none}.toplinks #btnTour{padding:4px 10px}}
+@media (min-width:861px){.toplinks #btnTour.mobonly{display:none}}
+@media (max-width:860px){#tourMask .tourhd{top:8px;right:8px;left:auto}#tourMask .tourhd b{display:none}#tourMask .tourhd button{width:34px;height:34px}}
+body.phemb #btnTour{display:none!important}

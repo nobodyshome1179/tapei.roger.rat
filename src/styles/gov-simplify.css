@@ -1,0 +1,34 @@
+/* 市府端簡化：派案卡與地圖彈窗共用的動作列與展開區 */
+.gacts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+.gstage{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700}
+.gstage b{font:700 11.5px/1 var(--round);border:1.3px solid var(--edge);border-radius:999px;padding:3px 7px;background:var(--lime);color:#222}
+details.gmore{margin-top:6px;font-size:12.5px}
+details.gmore>summary{cursor:pointer;color:var(--muted);list-style:none;font-size:12.5px;padding:2px 0}
+details.gmore>summary::-webkit-details-marker{display:none}
+details.gmore>summary::before{content:'▸ ';color:var(--ink)}
+details.gmore[open]>summary::before{content:'▾ '}
+details.gmore[open]{padding-bottom:4px}
+.glink{border:0;background:none;padding:2px 0;font:inherit;font-size:12.5px;color:var(--muted);text-align:left;justify-self:start;cursor:pointer}
+.glink:hover{color:var(--ink);text-decoration:underline}
+.gdet h5{margin:14px 0 6px;font-size:13px}
+.gdet .chips{margin:4px 0}
+.gdet .gwhy{margin:4px 0 8px;font-size:12.5px}
+.gdet .sevt tr.why{display:none}
+details.gview{margin-top:10px}
+details.gview>summary{display:inline-flex;list-style:none;border-color:var(--edge);font-weight:700}
+details.gview>summary::-webkit-details-marker{display:none}
+details.gview>summary span:last-child,details.gview[open]>summary span:first-child{display:none}
+details.gview[open]>summary span:last-child{display:inline}
+details.gview .sevt{margin-top:8px}
+details.gview .sevt tr.why{display:none}
+.gshops{margin:0;padding:0;list-style:none;font-size:12.5px}
+.gshops li{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.gshops li .muted{flex-basis:100%}
+.gord{margin:0;padding-left:18px;font-size:12.5px}
+.gord li{margin:2px 0}
+.gsteps{display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0;list-style:none;counter-reset:gs}
+.gsteps li{counter-increment:gs;font-size:11.5px;padding:2px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+.gsteps li::before{content:counter(gs) '. '}
+.gsteps li.ok{color:var(--ink)}
+.gsteps li.cur{background:var(--lime);border-color:var(--edge);color:#222;font-weight:700}
+.tri .act{color:var(--ink)}

@@ -1,0 +1,29 @@
+/* 市民任務：分類列與卡片圖示 */
+.tkf{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;margin:0 0 4px;scrollbar-width:none}
+.tkf::-webkit-scrollbar{display:none}
+.tkf button{flex:none;display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:4px 11px 4px 8px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.tkf button svg{width:18px;height:18px;flex:none}
+.tkf button b{font:700 11px/1 var(--round,inherit);color:var(--muted)}
+.tkf button[aria-pressed=true]{border-color:var(--edge);background:var(--lime);color:#222}
+.tkf button[aria-pressed=true] b{color:#222}
+.task.ti{grid-template-columns:44px minmax(0,1fr);column-gap:12px;align-items:start}
+.task.ti .tb{display:grid;gap:3px;min-width:0}
+.tico{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;border:1.5px solid var(--edge);background:color-mix(in srgb,var(--c,var(--paper)) 55%,var(--paper));color:var(--ink)}
+.tico svg{width:26px;height:26px}
+.tico.stn{background:var(--paper)}
+.tico.stn svg{width:28px;height:auto}
+h3 .hico{display:inline-flex;vertical-align:-3px;margin-right:6px}
+h3 .hico svg{width:20px;height:auto}
+.loots{display:flex;flex-wrap:wrap;gap:6px}
+.loots .lt{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink);border:1.3px solid var(--line);border-radius:999px;padding:2px 10px 2px 4px;background:var(--paper)}
+.loots .lt svg{width:20px;height:20px}
+.loots .lt b{font:700 11.5px/1 var(--round,inherit);color:var(--muted)}
+.loots .lt.off{opacity:.45}
+.loots .lt.rat{border-color:var(--edge)}
+.lbadge{width:44px;height:44px}
+.lbadge svg,.tierchip svg{width:100%;height:100%}
+.badge .bgo{display:block;margin:3px auto 0;border:1.3px solid var(--orange);background:none;color:var(--orange);border-radius:999px;padding:1px 8px;font:inherit;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.badge.off .bgo{opacity:1}
+.shoptabs{grid-template-columns:1fr 1fr;margin:14px 0 4px}
+.check .bigbtn{margin-top:8px}
+.badge .bp{display:block;font:700 11px/1.2 var(--round,inherit);color:var(--muted);margin-top:1px}
