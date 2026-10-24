@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vercel/analytics": "2.0.1",
     "leaflet": "1.9.4",
     "vue": "3.5.43"
   },
