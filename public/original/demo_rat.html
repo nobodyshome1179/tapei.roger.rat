@@ -1719,7 +1719,8 @@ h3 .hico svg{width:20px;height:auto}
 #cheeseGov{position:fixed;left:16px;bottom:142px;z-index:790;display:none}
 body[data-role=gov] #cheeseGov{display:block}
 body.phemb #cheeseGov{display:none!important}
-@media (max-width:860px){#cheeseGov{display:none!important}}
+/* 手機的開場可以捲動，absolute 會跟著內容捲走，改成貼住畫面底部 */
+@media (max-width:860px){#cheeseGov{display:none!important}#hero .cheesebtn{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom))}}
 @media (prefers-reduced-motion:reduce){.cheesebtn{animation:none}}
 
 /* 說明圖 */
