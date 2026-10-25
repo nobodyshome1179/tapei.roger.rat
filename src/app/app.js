@@ -11,7 +11,7 @@ import { makeModel } from '../lib/model.js';
 import RAT_ICON from '../assets/rat-icon.png';
 import {
   ADVICE, RESIDENT, EVENTS, STOP_WHY, TREND, SNAKE, TAG_ACT, TASK, TIER, TSTAT, DISP, VIEWS, SRC_ZH, ROLES,
-  LEVELS, BADGES, BADGE_ART, STIERS
+  LEVELS, BADGES, BADGE_ART, STIERS, WASTE_Q
 } from './terms.js';
 import {
   AVATAR_SVG, STORE_SVG, GIFT_SVG, rdIcon, RD_ITEMS, RD_LOCS, RD_STOCK, RD_FILTERS, LOC_DATA
@@ -57,7 +57,7 @@ const S = {
   report: { text: '', ll: null }, mine: [],
   card: { no: '108432', nick: '雙連小幫手', points: 120, spent: 158, streak: 8, checkins: 26, gems: 7, hours: 31, tickets: [], done: { clean: 6, garbage: 9, signs: 3, trap: 3, shop: 1, obs: 2 }, joined: new Set(), finished: new Set(),
     log: ['10/20・垃圾代收・雙連市場周邊一帶', '10/19・觀察餌盒 雙連-03・餌塊完整', '10/19・環境清潔・寧夏夜市一帶', '10/18・捕鼠籠巡查・雙連市場周邊一帶', '10/17・鼠跡確認・雙連市場周邊一帶', '10/16・店家三不輔導・寧夏夜市一帶', '10/15・觀察捕鼠籠 雙連-01・誘餌被吃', '10/14・垃圾代收・台北車站館前路一帶'] },
-  shop: { name: '阿月滷肉飯', area: '寧夏夜市', no: 'TPE-DT-0418', ll: [25.0563, 121.5154], tier: 0, days: 62, fixed: false, recheck: false, subsidy: false, alerts: [] },
+  shop: { name: '阿月滷肉飯', area: '寧夏夜市', no: 'TPE-DT-0418', ll: [25.0563, 121.5154], tier: 0, days: 62, fixed: false, recheck: false, subsidy: false, alerts: [], waste: { scrap: 'day', where: 'in', stay: 'none', who: 'city' } },
   data: { files: [] },
   ov: { scope: 'all', f: null, band: null, sort: 'recent' },
   obsOpen: null, taskReviews: {}, taskReviewsSeeded: false
@@ -97,7 +97,7 @@ L.control.zoom({ position: 'bottomright' }).addTo(map);
 map.attributionControl.setPosition('bottomright');
 L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
   maxNativeZoom: 18, maxZoom: 19,
-  attribution: '&copy; <a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">內政部國土測繪中心</a>（底圖、行政區界）'
+  attribution: '&copy; <a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">內政部國土測繪中心</a>（底圖、行政區界）、&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap 貢獻者</a>（超商位置）'
 }).addTo(map);
 for (const [n, z] of [['boundary', 450], ['labels', 460]]) { const p = map.createPane(n); p.style.zIndex = z; p.style.pointerEvents = 'none'; }
 const CV = L.canvas({ padding: 0.4 }), SVGR = L.svg({ padding: 0.4 });
@@ -200,9 +200,9 @@ function cvsRow(i, R) {
 }
 function popCvs(o) {
   const chips = Object.keys(M.CVSF).map(k => `<span class="chip${o.f[k] ? ' on' : ' off'}">${o.f[k] ? '' : '無'}${M.CVSF[k]}</span>`).join('');
-  return `<div class="pop"><h4>${esc(o.name)}</h4><div class="sub">${o.hex >= 0 ? esc(M.placeOf(o.hex)) + '一帶・' : ''}${o.sim ? '位置與設施都是模擬' : o.facSim ? '位置為匯入資料，設施為模擬' : '匯入資料'}</div>
+  return `<div class="pop"><h4>${esc(o.name)}</h4><div class="sub">${o.hex >= 0 ? esc(M.placeOf(o.hex)) + '一帶・' : ''}${o.osm ? '位置來自 OpenStreetMap，設施為模擬' : o.facSim ? '位置為匯入資料，設施為模擬' : '匯入資料'}</div>
     <div class="chips" style="margin-top:6px">${chips}</div>
-    <table>${row('食物源權重', `${o.w.toFixed(1)}（基本 1）`)}${row('區塊風險', o.hex >= 0 ? `所在格 +${Math.round(M.CVS_MAX * M.cvsNorm[o.hex])} 百分位，上限 +${M.CVS_MAX}` : '—')}${row('嚴重度', `80 公尺內的通報 +${M.cvsPts(o)}，上限 +5`)}</table></div>`;
+    <table>${row('食物源權重', `${o.w.toFixed(1)}（基本 1）`)}${row('區塊風險', o.hex >= 0 ? `所在格 +${(M.week(S.week).risk.bump || [])[o.hex] || 0} 百分位，上限 +${M.CVS_MAX}` : '—')}${row('嚴重度', '不加分（超商周邊人多，通報多不代表鼠多）')}</table></div>`;
 }
 function cvsPoints(W) {
   if (!CVL) CVL = L.layerGroup().addTo(map);
@@ -599,7 +599,7 @@ function legend(W) {
       let a = 0, b = 0;
       M.MASKED.forEach(i => { const c = W.risk.cls[i]; if (c === 'source') a++; else if (c === 'spread') b++; });
       return ['風險地圖', fhd + fb('src', box(P['risk-src']), '高風險源頭（前 10%）', a + ' 格') + fb('spread', dash(P['risk-spread']), '可能擴散範圍', b + ' 格') +
-        fb('food', `<span class="sw icon">${ICON_FOOD}</span>`, '食物點（市場、夜市）') + fb('harbor', `<span class="sw icon">${ICON_TREE}</span>`, '可能棲所（公園、河濱、工地）') + (M.CVS.length ? lg(`<i class="sw" style="background:${P.l2};border-radius:50%"></i>`, `超商 ${M.CVS.length.toLocaleString('zh-TW')} 家${M.CVS[0].sim ? '（模擬）' : ''}；越暖色設施越多，放大到街區顯示`) + `<div class="cvsrow"><button type="button" class="btn" data-cvstoggle aria-pressed="${M.CVS_ON}">超商因子：${M.CVS_ON ? '開' : '關'}</button></div>` : '') +
+        fb('food', `<span class="sw icon">${ICON_FOOD}</span>`, '食物點（市場、夜市）') + fb('harbor', `<span class="sw icon">${ICON_TREE}</span>`, '可能棲所（公園、河濱、工地）') + (M.CVS.length ? lg(`<i class="sw" style="background:${P.l2};border-radius:50%"></i>`, `超商 ${M.CVS.length.toLocaleString('zh-TW')} 家${M.CVS[0].osm ? '（OpenStreetMap，設施模擬）' : ''}；越暖色設施越多，放大到街區顯示`) + `<div class="cvsrow"><button type="button" class="btn" data-cvstoggle aria-pressed="${M.CVS_ON}">超商因子：${M.CVS_ON ? '開' : '關'}</button></div>` : '') +
         note(`食物點與棲所是優先查看的地方，不是已確認的鼠窩。${W.risk.available.sewer ? '' : '目前沒有下水道資料，權重已重新分配。'}`)];
     }
     case 'points': return ['通報點位', fhd + (M.realReports ? '' : fb('p1999', dot(P.p1999), '1999 陳情')) + fb('pradar', ring(P.pradar), '見鼠地圖') + (M.realReports ? fb('pbait', ring(P['sn-poison']), '毒餌通報') : '') +
@@ -1052,9 +1052,9 @@ function renderRules() {
   <h3>非目標物種</h3>
   <p>上鎖餌盒擋得住兒童、貓狗和大型鳥類，擋不住體型和老鼠相近的小動物，也擋不住二次中毒。加州研究拍到原生鼠類與負鼠進出餌盒、松鼠咬穿盒蓋；德國農場研究發現，非目標小型哺乳類的鼠藥殘留集中在餌站 15 公尺內；台灣死亡猛禽六成以上驗出鼠藥，北市與基隆的死亡鳳頭蒼鷹高達 92%。所以檢傷台的監測用無毒餌；公園綠地 1 公里內不放毒餌；附近有蛇改用捕鼠籠；回報其他動物接觸就暫停毒餌；死鳥、死蛇轉介送驗。</p>
   <h3>超商（概念發想）</h3>
-  <p>超商視為比餐飲低一級的食物源。區塊風險：每家超商基本權重 1，內用區 +0.6、熱食炸物櫃 +0.4、手搖飲 +0.4、關東煮 +0.3、霜淇淋 +0.3，以 150 公尺範圍累計成超商密度；密度最高的 5% 區塊在區塊風險上加 5 個百分位，其他依比例遞減。只加不減，不改變高風險源頭的分類，也不會讓沒有超商的區塊下降；因為還是假設，派案級別的門檻用未含超商的分數，超商只影響風險顯示與嚴重度排序。對照之下，食物源（市場、夜市）占風險模型的 35%。嚴重度：通報 80 公尺內有超商 +2，有內用區 +1、熱食炸物櫃 +1、關東煮／霜淇淋／手搖任一 +1，最多 +5；描述提到餐飲市場是 +10。</p>
-  <p>理由：內用區會在現場留下吃剩的食物；熱食、炸物與關東煮會產生油脂和湯汁廚餘；霜淇淋與手搖飲會留下含糖的杯子與殘渣。國外研究發現餐飲業者密度和鼠類通報位置正相關，但目前沒有超商本身的研究，香港政府也表示沒有明確證據顯示 24 小時營業的食肆會加重鼠患，所以權重刻意壓低。</p>
-  <p class="muted">資料：位置可以匯入；沒有匯入時，依公平會 2019 年調查的臺北市 1,631 家，按各區人口規模與商業程度的概略權重分配，區內再沿捷運站與一般街廓模擬位置，不參考鼠患資料，避免自我印證。內用區等設施沒有開放資料，一律模擬：內用區 55%、熱食炸物櫃 50%、關東煮 60%、霜淇淋約 30%、手搖飲約 20%。在「風險」圖例可以關閉超商因子比較差異。</p>
+  <p>超商視為比餐飲低一級的食物源，只影響區塊風險，不加在單筆通報的嚴重度。每家超商基本權重 1，內用區 +0.6、熱食炸物櫃 +0.4、手搖飲 +0.4、關東煮 +0.3、霜淇淋 +0.3，以 150 公尺範圍累計成超商密度，距離越遠影響越小；密度最高的 5% 區塊在區塊風險上加 ${M.CVS_MAX} 個百分位，其他依比例遞減。食物源已在全市前 10% 的區塊不加，避免和市場、夜市重複計算。只加不減，不改變高風險源頭的分類，也不會讓沒有超商的區塊下降；派案級別的門檻用未含超商的分數，超商只影響風險顯示。對照之下，食物源（市場、夜市）占風險模型的 35%。</p>
+  <p>理由：內用區會在現場留下吃剩的食物；熱食、炸物與關東煮會產生油脂和湯汁廚餘；霜淇淋與手搖飲會留下含糖的杯子與殘渣。國外研究發現餐飲業者密度和鼠類通報位置正相關，但目前沒有超商本身的研究，香港政府也表示沒有明確證據顯示 24 小時營業的食肆會加重鼠患。超商也是人潮聚集的地方，周邊通報多可能只是看到的人多，不一定是老鼠多，所以不加在通報的嚴重度，區塊風險的權重也刻意壓低。更可能的關鍵是鮮食報廢與垃圾的暫存方式，需要店家自評或現場巡查才知道。</p>
+  <p class="muted">資料：位置可以匯入；沒有匯入時，用 OpenStreetMap 的 7-Eleven、全家、萊爾富、OK 位置（2026-10-25 擷取，共 1,563 家，ODbL 授權），只取經緯度，地圖不顯示店名。內用區等設施沒有開放資料，一律模擬：內用區 55%、熱食炸物櫃 50%、關東煮 60%、霜淇淋約 30%、手搖飲約 20%。在「風險」圖例可以關閉超商因子比較差異。</p>
   <h3>三種身份看到的不一樣</h3>
   <p>市民只看到區塊熱度和自己附近的任務，不會看到別人通報的位置；店家收到周邊派案提醒，但看不到通報者；市府看得到每一筆通報與分級依據，負責派案。</p>
   <h3>區塊風險</h3>
@@ -1121,8 +1121,8 @@ function toggleCvs() {
   afterModelChange();
   const W = M.week(S.week);
   let up = 0, dn = 0, ch = 0;
-  M.MASKED.forEach((i, k) => { const d = W.live(i) - was[k]; if (d >= 3) up++; else if (d <= -3) dn++; if ((W.risk.cls[i] === 'source') !== src.has(i)) ch++; });
-  toast(`超商因子已${CVS_OPT.cvs ? '開啟' : '關閉'}：第 ${S.week} 週有 ${CVS_OPT.cvs ? up : dn} 格的區塊風險${CVS_OPT.cvs ? '上升' : '下降'} 3 個百分位以上`);
+  M.MASKED.forEach((i, k) => { const d = W.live(i) - was[k]; if (d >= 1) up++; else if (d <= -1) dn++; if ((W.risk.cls[i] === 'source') !== src.has(i)) ch++; });
+  toast(`超商因子已${CVS_OPT.cvs ? '開啟' : '關閉'}：第 ${S.week} 週有 ${CVS_OPT.cvs ? up : dn} 格的區塊風險${CVS_OPT.cvs ? '上升' : '下降'}（每格最多 ${M.CVS_MAX} 個百分位）`);
 }
 function afterModelChange() {
   deriveShops();
@@ -1365,6 +1365,16 @@ function shopBadges(sh) {
   return `<div class="sec"><h3>徽章</h3><div class="badges bgrid">${B.map(([n, k, on, hint]) => `<span class="badge${on ? '' : ' off'}" title="${on ? '已取得' : '尚未取得'}">${SHOP_ART[k]}<span class="bn">${n}</span>${on ? '' : hint || ''}</span>`).join('')}</div></div>`;
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-shoptab]'); if (b) { S.shopTab = b.dataset.shoptab; renderShop(); } });
+// 廢棄物自評：重畫後把焦點放回剛按的選項
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-waste]');
+  if (!b) return;
+  const [k, v] = b.dataset.waste.split(':');
+  S.shop.waste[k] = v;
+  renderShop();
+  const f = $(`#m-shop [data-waste="${k}:${v}"]`);
+  if (f) f.focus();
+});
 function renderShop() {
   const sh = S.shop, nx = STIERS[sh.tier + 1], rk = shopRank(), pct = [50, 70, 90][sh.tier], ok = sh.fixed, tab = S.shopTab || 'todo';
   const cost = 4000, grant = Math.min(cost * pct / 100, 3000);
@@ -1372,17 +1382,22 @@ function renderShop() {
   const act = ok
     ? `<button type="button" class="bigbtn" data-recheck ${sh.recheck ? 'disabled' : ''}>${sh.recheck ? '已申請複檢，衛生局排程中' : '申請複檢'}</button>`
     : '<button type="button" class="bigbtn" data-fix>拍照回報改善</button>';
-  const todo = `<div class="sec"><div class="between"><h3>${ok ? '三不檢查都完成了' : '待改善 1 項'}</h3><span class="muted">${ok ? (sh.recheck ? '等衛生局複檢' : '下一步：申請複檢') : '完成後就能申請補助'}</span></div>
+  // 廢棄物自評：選到要改善的答案，「不留食物」就列為待改善
+  const wq = WASTE_Q.map(([k, q, opts]) => ({ k, q, opts, bad: opts.find(o => o[0] === sh.waste[k]) }));
+  const wbad = wq.filter(x => x.bad && x.bad[2]).map(x => x.bad[1]), foodOk = !wbad.length, pend = (ok ? 0 : 1) + (foodOk ? 0 : 1), allOk = !pend;
+  const wform = `<div class="waste">${wq.map(x => `<div class="wq"><span>${x.q}</span><div class="seg wrap" role="group" aria-label="${x.q}">${x.opts.map(([v, n]) => `<button type="button" data-waste="${x.k}:${v}" aria-pressed="${sh.waste[x.k] === v}">${n}</button>`).join('')}</div></div>`).join('')}
+      <p class="muted">示範：回答只留在這個畫面，不會上傳。正式版會交給衛生局，並作為檢傷模型的店家觀察資料，取代超商的模擬設施。</p></div>`;
+  const todo = `<div class="sec"><div class="between"><h3>${allOk ? '三不檢查都完成了' : `待改善 ${pend} 項`}</h3><span class="muted">${allOk ? (sh.recheck ? '等衛生局複檢' : '下一步：申請複檢') : '完成後就能申請補助'}</span></div>
       ${item(ok, '不留孔洞', '後門下方縫隙約 2 公分，需加裝擋鼠板' + (ok ? (sh.recheck ? '・已申請複檢' : '・已回報改善') : ''), act)}
-      ${item(true, '不留食物', '廚餘桶加蓋，打烊清空')}${item(true, '不堆雜物', '後巷與倉庫淨空')}
+      ${item(foodOk, '不留食物', foodOk ? '廚餘桶加蓋，打烊清空；報廢品與垃圾不在店外過夜' : `依廢棄物自評，待改善：${wbad.join('、')}`, wform)}${item(true, '不堆雜物', '後巷與倉庫淨空')}
       <p class="muted">主動通報、主動改善都不扣分。</p></div>`;
-  const sub = `<div class="subsidy ${ok ? 'ok' : 'no'}"><div class="between"><b>防鼠設施補助</b><span class="pill">${ok ? '符合資格' : '尚未符合'}</span></div>
+  const sub = `<div class="subsidy ${allOk ? 'ok' : 'no'}"><div class="between"><b>防鼠設施補助</b><span class="pill">${allOk ? '符合資格' : '尚未符合'}</span></div>
       <p>買密封廚餘桶、擋鼠板、門縫條等防鼠設施，市府依標章等級<b>補助部分費用</b>，每家每年最多 NT$3,000。</p>
       <div class="sbtiers">${STIERS.map((x, i) => `<div class="${i === sh.tier ? 'on' : ''}"><span>${x.name}</span><b>補助 ${[50, 70, 90][i]}%</b>${i === sh.tier ? '<em>目前</em>' : ''}</div>`).join('')}</div>
       <p class="sbex">例：買一組 NT$${cost.toLocaleString()} 的擋鼠板，補助 ${pct}% 是 NT$${grant.toLocaleString()}${cost * pct / 100 > 3000 ? '（已達上限）' : ''}，自付 NT$${(cost - grant).toLocaleString()}。</p>
       <div class="muted" style="margin-top:6px">申請條件</div>
-      <ul class="req"><li>已取得${STIERS[sh.tier].name}</li><li class="${ok ? '' : 'no'}">待改善項目全部完成${ok ? '' : '（還差：不留孔洞）'}</li><li>近 90 天沒有隱匿紀錄</li></ul>
-      ${ok ? `<button type="button" class="bigbtn" data-sb-apply ${sh.subsidy ? 'disabled' : ''}>${sh.subsidy ? '已送出申請，衛生局審核中' : '申請補助'}</button>` : '<p class="muted" style="margin:8px 0 0">完成上面的待改善，就能申請。</p>'}
+      <ul class="req"><li>已取得${STIERS[sh.tier].name}</li><li class="${allOk ? '' : 'no'}">待改善項目全部完成${allOk ? '' : `（還差：${[!ok && '不留孔洞', !foodOk && '不留食物'].filter(Boolean).join('、')}）`}</li><li>近 90 天沒有隱匿紀錄</li></ul>
+      ${allOk ? `<button type="button" class="bigbtn" data-sb-apply ${sh.subsidy ? 'disabled' : ''}>${sh.subsidy ? '已送出申請，衛生局審核中' : '申請補助'}</button>` : '<p class="muted" style="margin:8px 0 0">完成上面的待改善，就能申請。</p>'}
       <p class="muted" style="margin:6px 0 0">補助比例與上限為模擬，正式規則需由主管機關訂定。</p></div>`;
   const badge = `<div class="sec"><h3>標章等級</h3><div class="ladder">${STIERS.map((t, i) => `<div class="${i === sh.tier ? 'on' : ''} ${i <= sh.tier ? 'got' : 'lock'}"><span class="lbadge">${SHOP_ART[SHOP_TIER_ART[i]]}</span><span class="ltxt"><b>${t.name}<span class="lstate">${i <= sh.tier ? '已取得' : '未取得'}</span></b>${t.desc}</span></div>`).join('')}</div>
       ${nx ? `<p class="muted" style="margin-top:8px">升級到${nx.name}：連續良好 ${sh.days}／90 天</p><div class="prog"><i style="width:${(sh.days / 90) * 100}%"></i></div>` : ''}</div>
@@ -1391,7 +1406,7 @@ function renderShop() {
   $('#m-shop').innerHTML = `<div class="crew"><div class="crewtop"><span class="ava store" aria-hidden="true">${STORE_SVG}</span><div class="who"><b>${esc(sh.name)}</b><span class="muted">${esc(sh.area)}・店家編號 ${sh.no}・模擬店家</span></div><span class="tierchip" title="${STIERS[sh.tier].name}">${SHOP_ART[SHOP_TIER_ART[sh.tier]]}</span></div>
     <div class="shopstats"><div><b>#${rk.rank}</b><span>周邊 1.5 公里・共 ${rk.total} 家</span></div><div><b>${rk.score}</b><span>綜合分</span></div><div><b>${sh.days}</b><span>連續良好天數</span></div></div>
     <button type="button" class="linkbtn" data-sb-rank>看完整排行 ›</button></div>
-    <div class="qtabs shoptabs" role="tablist" aria-label="我的店"><button type="button" role="tab" data-shoptab="todo" aria-selected="${tab === 'todo'}">改善與補助${ok ? '' : '<span class="qn hot">1</span>'}</button><button type="button" role="tab" data-shoptab="badge" aria-selected="${tab === 'badge'}">標章與徽章</button></div>
+    <div class="qtabs shoptabs" role="tablist" aria-label="我的店"><button type="button" role="tab" data-shoptab="todo" aria-selected="${tab === 'todo'}">改善與補助${allOk ? '' : `<span class="qn hot">${pend}</span>`}</button><button type="button" role="tab" data-shoptab="badge" aria-selected="${tab === 'badge'}">標章與徽章</button></div>
     ${tab === 'todo' ? todo + sub : badge}`;
 }
 function renderAlerts(W) {

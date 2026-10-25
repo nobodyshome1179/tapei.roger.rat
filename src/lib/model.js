@@ -4,6 +4,8 @@
    Gi* 熱點與風險模型，原樣沿用。
    分級概念：鼠患檢傷站（level）的五級檢傷與派案對象。
    ============================================================ */
+import CVS_OSM from '../data/cvs-osm.json';
+
 export function makeModel(OD, bundle, opt = {}) {
   const { Lc, Hc, Kc, qc, Jc, tl, sl, cl, Nl, kl, Uc, rc, pc, ml, wl, Tl, Fs, Is, hl, gl, Sl, nl, il, al, qs, ec } = OD;
 
@@ -218,49 +220,18 @@ export function makeModel(OD, bundle, opt = {}) {
     return x;
   }
 
-  /* ---- 超商（概念發想）：比餐飲低一級的食物源；位置可匯入，設施沒有開放資料就模擬 ---- */
-  const CVS_ON = opt.cvs !== false, CVS_MAX = 5;
+  /* ---- 超商（概念發想）：比餐飲低一級的食物源，只加在區塊風險；設施沒有開放資料就模擬 ---- */
+  const CVS_ON = opt.cvs !== false, CVS_MAX = 2;
   const CVSF = { seat: '內用區', hot: '熱食炸物櫃', oden: '關東煮', soft: '霜淇淋', tea: '手搖飲' };
   const CVS_W = { seat: 0.6, hot: 0.4, tea: 0.4, oden: 0.3, soft: 0.3 };
-  const MRT = [[25.0461,121.5174,3],[25.0528,121.5204,2],[25.0577,121.5206,1.5],[25.0627,121.5193,1.5],[25.0713,121.5201,1],[25.0849,121.5250,1.2],[25.0936,121.5262,1.5],[25.1030,121.5225,1],[25.1098,121.5190,1],[25.1146,121.5156,1.2],[25.1207,121.5062,0.8],[25.1255,121.5011,0.8],[25.1320,121.4986,1.2],[25.1370,121.5030,0.8],[25.1375,121.4854,0.6],[25.1309,121.4733,0.5],[25.1256,121.4671,0.6],
-    [25.0326,121.5703,1],[25.0331,121.5628,1.5],[25.0333,121.5527,1],[25.0331,121.5436,1.5],[25.0336,121.5354,1],[25.0339,121.5287,1.5],[25.0330,121.5180,1.5],[25.0417,121.5162,1],
-    [25.0553,121.6172,1],[25.0521,121.6070,1],[25.0505,121.5933,1],[25.0450,121.5824,1],[25.0409,121.5763,1],[25.0412,121.5651,2],[25.0413,121.5578,1.5],[25.0415,121.5509,1.5],[25.0416,121.5437,2],[25.0424,121.5330,1.5],[25.0447,121.5232,1],[25.0421,121.5082,2],[25.0352,121.5000,1.5],
-    [25.0500,121.5778,1.2],[25.0516,121.5640,1],[25.0517,121.5518,1.2],[25.0521,121.5441,1.5],[25.0520,121.5332,1.5],[25.0494,121.5103,1],[25.0360,121.5112,0.8],[25.0265,121.5228,1.5],[25.0207,121.5283,1.2],[25.0148,121.5343,1.5],[25.0019,121.5390,1],[24.9930,121.5410,1],
-    [25.0633,121.5130,1],[25.0626,121.5265,1],[25.0597,121.5331,1.2],[24.9982,121.5795,0.6],[24.9983,121.5732,0.8],[24.9986,121.5681,0.8],[24.9993,121.5582,0.8],[25.0055,121.5571,0.6],[25.0185,121.5588,0.8],[25.0237,121.5530,1],[25.0262,121.5435,1],
-    [25.0609,121.5443,1],[25.0630,121.5519,1],[25.0794,121.5469,1],[25.0848,121.5556,1],[25.0821,121.5672,1],[25.0802,121.5751,1],[25.0785,121.5848,1],[25.0836,121.5944,1.2],[25.0838,121.6023,0.8],[25.0727,121.6073,0.8],[25.0671,121.6115,1],[25.0599,121.6159,0.8]];
   const facOf = str => Object.fromEntries(Object.keys(CVSF).map(k => [k, str.split(',').includes(k)]));
   const simFac = r => { const seat = r() < 0.55; return { seat, hot: r() < 0.5, oden: r() < 0.6, soft: r() < (seat ? 0.38 : 0.22), tea: r() < (seat ? 0.26 : 0.14) }; };
+  /* 位置：有匯入就用匯入的；沒有就用 OpenStreetMap 的四大超商。OSM 只存經緯度，名稱用編號，地圖不點名店家 */
   const CVS = (() => {
     const imp = POIS.filter(p => p.cvs), r = rnd(1631);
-    if (imp.length) return imp.map((p, i) => { const [x, y] = Fs(p.ll[0], p.ll[1]), h = GRID.hexOf(x, y); return { id: 'C' + i, name: p.name, ll: p.ll, x, y, hex: h == null || !GRID.mask[h] ? -1 : h, f: p.fac == null ? simFac(r) : facOf(p.fac), sim: false, facSim: p.fac == null }; });
-    /* 各區配額：人口規模 × 商業程度的概略權重（概念用，不是統計值）；區內再依捷運站與一般街廓分布，不參考鼠患資料 */
-    const DW = { 中正區: 210, 大同區: 132, 中山區: 300, 松山區: 228, 大安區: 354, 萬華區: 192, 信義區: 246, 士林區: 238, 北投區: 208, 內湖區: 247, 南港區: 103, 文山區: 217 };
-    const tot = Object.values(DW).reduce((a, b) => a + b, 0);
-    const st = MRT.map(([la, lo, w]) => { const [x, y] = Fs(la, lo), h = GRID.hexOf(x, y); return { x, y, w, d: h == null ? -1 : GRID.district[h] }; });
-    const gauss = () => { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); };
-    const out = [];
-    for (const [name, wt] of Object.entries(DW)) {
-      const di = pc.indexOf(name);
-      if (di < 0) continue;
-      const quota = Math.round((1631 * wt) / tot), hexes = MASKED.filter(h => GRID.district[h] === di);
-      const near = hexes.map(h => { const c = GRID.hexes[h]; let d = Infinity; for (const o of st) d = Math.min(d, Math.hypot(c.cx - o.x, c.cy - o.y)); return Math.exp(-d / 700) + 0.08; });
-      const nsum = near.reduce((a, b) => a + b, 0), sts = st.filter(o => o.d === di), ssum = sts.reduce((a, o) => a + o.w, 0);
-      const pickHex = () => { let u = r() * nsum; for (let q = 0; q < hexes.length; q++) if ((u -= near[q]) <= 0) return hexes[q]; return hexes[0]; };
-      const pickSt = () => { let u = r() * ssum; for (const o of sts) if ((u -= o.w) <= 0) return o; return sts[0]; };
-      for (let made = 0, guard = 0; made < quota && guard < quota * 40; guard++) {
-        let x, y;
-        if (sts.length && r() < 0.35) { const o = pickSt(); x = o.x + gauss() * 550; y = o.y + gauss() * 550; }
-        else { const c = GRID.hexes[pickHex()]; x = c.cx + (r() - 0.5) * 350; y = c.cy + (r() - 0.5) * 350; }
-        const h = GRID.hexOf(x, y);
-        if (h == null || !GRID.mask[h] || GRID.district[h] !== di) continue;
-        made++;
-        out.push({ id: 'C' + out.length, name: `超商 #${String(out.length + 1).padStart(4, '0')}`, ll: Is(x, y), x, y, hex: h, f: simFac(r), sim: true, facSim: true });
-      }
-    }
-    return out;
+    const src = imp.length ? imp.map(p => ({ name: p.name, ll: p.ll, fac: p.fac })) : CVS_OSM.points.map((ll, i) => ({ name: `超商 #${String(i + 1).padStart(4, '0')}`, ll, fac: null, osm: true }));
+    return src.map((p, i) => { const [x, y] = Fs(p.ll[0], p.ll[1]), h = GRID.hexOf(x, y); return { id: 'C' + i, name: p.name, ll: p.ll, x, y, hex: h == null || !GRID.mask[h] ? -1 : h, f: p.fac == null ? simFac(r) : facOf(p.fac), osm: !!p.osm, facSim: p.fac == null }; });
   })();
-  const cvsPts = o => 2 + (o.f.seat ? 1 : 0) + (o.f.hot ? 1 : 0) + (o.f.oden || o.f.soft || o.f.tea ? 1 : 0);
-  const facTxt = f => { const on = Object.keys(CVSF).filter(k => f[k]).map(k => CVSF[k]); return on.length ? on.join('、') : '無內用、無熱食'; };
   const cvsRaw = new Float32Array(GRID.H), CVS_BY_HEX = new Map();
   for (const o of CVS) {
     o.w = 1 + Object.keys(CVS_W).reduce((t, k) => t + (o.f[k] ? CVS_W[k] : 0), 0);
@@ -271,6 +242,7 @@ export function makeModel(OD, bundle, opt = {}) {
   }
   const q95 = (() => { const v = MASKED.map(i => cvsRaw[i]).sort((a, b) => a - b); return v[Math.floor(v.length * 0.95)] || 1; })();
   const cvsNorm = Float32Array.from(cvsRaw, v => Math.min(1, v / q95));
+  let FOOD_TOP = null; // 食物源前 10% 的門檻，第一次算週資料時決定
 
   /* ---- 嚴重度指數：每個危險因子列出原因、事件屬性與分數加成，加總上限 100 ---- */
   const SEV = {
@@ -293,7 +265,6 @@ export function makeModel(OD, bundle, opt = {}) {
     snake: { name: '蛇鼠佐證', rule: '蛇鼠共現 +4；投藥區有蛇 +3', reason: { cross: '附近也有蛇類目擊，兩個獨立的觀測管道互相佐證鼠密度偏高。', poison: '投藥區附近有蛇，要留意二次中毒，改用防鼠或誘捕。' } },
     wild: { name: '疑似二次中毒', rule: '描述提到死鳥、死蛇 +6', reason: '猛禽與蛇吃了中毒的老鼠會二次中毒；台灣死亡猛禽六成以上驗出鼠藥。看到時要送驗，並檢討附近投藥。' },
     station: { name: '餌站鼠跡', rule: '周邊餌站近 2 週有一半以上出現鼠跡 +5', reason: '固定餌站與捕鼠籠是和通報互相獨立的主動監測；餌被吃、籠內有鼠，代表這一帶確實有鼠群活動，不只是被看見。' },
-    cvs: { name: '鄰近超商', rule: '80 公尺內有超商 +2；內用區 +1、熱食炸物櫃 +1、關東煮／霜淇淋／手搖任一 +1，最多 +5', reason: '超商是比餐飲低一級的食物源；內用區留下吃剩的食物，熱食、炸物與關東煮產生油脂和湯汁廚餘，霜淇淋與手搖飲留下含糖杯子。超商本身沒有直接研究，屬原型假設。' }
   };
   const BANDS = [{ k: 4, min: 70, name: '危急' }, { k: 3, min: 55, name: '嚴重' }, { k: 2, min: 35, name: '中等' }, { k: 1, min: 0, name: '輕微' }];
   const KW = {
@@ -331,12 +302,6 @@ export function makeModel(OD, bundle, opt = {}) {
       if (x.snake === 'cross' || x.snake === 'poison') add('snake', `近 8 週有蛇類目擊，${x.snake === 'cross' ? '附近也是鼠類熱點' : '位在投藥區'}`, x.snake === 'cross' ? 4 : 3, x.snake);
       if (w) { const hs = hexStation(x.h, w); if (hs.seen && hs.active / hs.seen >= 0.5) add('station', `周邊 ${hs.stations} 個站，近 2 週有觀察的 ${hs.seen} 個中 ${hs.active} 個出現鼠跡`, 5); }
     }
-    if (CVS_ON && CVS.length && meta.ll) {
-      const [x0, y0] = Fs(meta.ll[0], meta.ll[1]), h0 = x ? x.h : GRID.hexOf(x0, y0);
-      let best = null;
-      if (h0 != null && h0 >= 0) for (const b of nbOf(h0)) for (const o of CVS_BY_HEX.get(b) || []) { const d = Math.hypot(o.x - x0, o.y - y0), p = cvsPts(o); if (d <= 80 && (!best || p > best.p || (p === best.p && d < best.d))) best = { o, d, p }; }
-      if (best) add('cvs', `${Math.max(10, Math.round(best.d / 10) * 10)} 公尺內有超商（${facTxt(best.o.f)}）${best.o.facSim ? '・設施模擬' : ''}`, best.p);
-    }
     if (w) {
       const q = qs[w];
       if (q.stopDays > 2) add('stop', `第 ${w} 週停收 ${q.stopDays} 天（${q.reasons.map(k => STOP_WHY[k] || k).join('、')}）`, 3 * (q.stopDays - 2));
@@ -371,10 +336,13 @@ export function makeModel(OD, bundle, opt = {}) {
         for (let i = 0; i < GRID.H; i++) if (a[i]) r8[i] += a[i];
       }
     const risk = Nl(GRID, FEAT, r8, w, kl(350, Uc.lit.dispersal8w));
-    /* 超商只加不減：在區塊風險百分位上加 0–5 點，不改變源頭分類，也不會讓其他區塊下降 */
+    /* 超商只加不減：在區塊風險百分位上加 0–2 點，不改變源頭分類，也不會讓其他區塊下降；
+       食物源已在全市前 10% 的區塊不加，避免和市場、夜市重複計算 */
     const bump = new Uint8Array(GRID.H);
     if (CVS_ON && CVS.length) {
-      for (const i of MASKED) bump[i] = Math.round(CVS_MAX * cvsNorm[i]);
+      const food = risk.parts.food;
+      if (FOOD_TOP == null) { const v = MASKED.map(i => food[i]).sort((a, b) => a - b); FOOD_TOP = v[Math.floor(v.length * 0.9)]; }
+      for (const i of MASKED) bump[i] = food[i] > 0 && food[i] >= FOOD_TOP ? 0 : Math.round(CVS_MAX * cvsNorm[i]);
       risk.parts.cvs = cvsNorm;
       risk.bump = bump;
       risk.available.cvs = true;
@@ -435,6 +403,6 @@ export function makeModel(OD, bundle, opt = {}) {
     if (!ALL) { ALL = []; for (let w = 1; w <= NW; w++) for (const r of week(w).reps) ALL.push(r); }
     return ALL;
   }
-  return { all, severity, SEV, BANDS, ST, ACTIVE, ALERT, STATIONS, baitPtsAll: real ? real.baitPoints : [], CVSF, CVS_ON, CVS_MAX, cvsNorm, cvsPts, facTxt, CVS_BY_HEX, stationWeek, hexStation, stationTrend, observe, CVS, real: !!real, realReports, W1999, POIS, baitPts: realReports ? real.baitPoints : [], sources: real ? real.sourcesLoaded : [], bundle: bundle || null,
+  return { all, severity, SEV, BANDS, ST, ACTIVE, ALERT, STATIONS, baitPtsAll: real ? real.baitPoints : [], CVSF, CVS_ON, CVS_MAX, cvsNorm, CVS_BY_HEX, stationWeek, hexStation, stationTrend, observe, CVS, real: !!real, realReports, W1999, POIS, baitPts: realReports ? real.baitPoints : [], sources: real ? real.sourcesLoaded : [], bundle: bundle || null,
     GRID, SIM, RBW, SNK, CNT, AN, BAIT, NW, MASKED, REPORTS, TOTALS, LV, T, TAGS, TAG_ZH, judge, judgeTags, triage, week, hexAt, hexOfLL, hexLL, placeOf, districtOf };
 }
